@@ -2,6 +2,7 @@
 #include <RagdollEngine/Physics/RagdollSkeleton.hpp>
 #include <RagdollEngine/Physics/ActiveRagdollController.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
+#include <RagdollEngine/Render/CharacterRegistry.hpp>
 #include <RagdollEngine/Render/JuiceFX.hpp>
 #include <memory>
 #include <string>
@@ -11,13 +12,11 @@ namespace StickminGame {
 
 class Fighter {
 public:
-    Fighter(b2WorldId worldId, int id, const std::string& fighterName, const sf::Vector2f& spawnPos, const sf::Color& accentColor)
-        : m_worldId(worldId), m_fighterId(id), m_name(fighterName), m_accentColor(accentColor) {
+    Fighter(b2WorldId worldId, int id, const RagdollEngine::CharacterDefinition& charDef, const sf::Vector2f& spawnPos)
+        : m_worldId(worldId), m_fighterId(id), m_charDef(charDef) {
         
-        m_theme.accentColor = accentColor;
-        m_theme.bodyColor = sf::Color(22, 24, 28);
-        m_theme.headFillColor = sf::Color(245, 245, 250);
-        m_theme.headOutlineColor = sf::Color(18, 18, 22);
+        m_name = m_charDef.displayName;
+        m_accentColor = m_charDef.accentColor;
 
         m_trailFistL = (id - 1) * 4 + 0;
         m_trailFistR = (id - 1) * 4 + 1;
@@ -25,6 +24,14 @@ public:
         m_trailFootR = (id - 1) * 4 + 3;
 
         respawn(spawnPos);
+    }
+
+    Fighter(b2WorldId worldId, int id, const std::string& fighterName, const sf::Vector2f& spawnPos, const sf::Color& accentColor)
+        : Fighter(worldId, id, (id == 2 ? RagdollEngine::CharacterRegistry::getEllie() : RagdollEngine::CharacterRegistry::getHenry()), spawnPos) {
+        if (!fighterName.empty()) m_charDef.displayName = fighterName;
+        m_charDef.accentColor = accentColor;
+        m_name = m_charDef.displayName;
+        m_accentColor = accentColor;
     }
 
     void respawn(const sf::Vector2f& spawnPos) {
@@ -84,16 +91,16 @@ public:
 
             if (move.isElectric) {
                 juiceFX.spawnElectricBurst(tip, sf::Color(120, 220, 255), 3, 24.0f);
-                m_theme.glowingEyes = true;
-                m_theme.eyeGlowColor = sf::Color(120, 220, 255);
+                m_charDef.glowingEyes = true;
+                m_charDef.eyeGlowColor = sf::Color(120, 220, 255);
             }
         } else {
-            m_theme.glowingEyes = false;
+            m_charDef.glowingEyes = false;
         }
     }
 
     void takeDamage(float dmg) {
-        m_health = std::max(0.0f, m_health - dmg);
+        m_health = std::max(0.0f, m_health - dmg * (1.0f / m_charDef.defenseMult));
         m_ghostTimer = 0.45f; // Hang for 0.45s before draining ghost bar
         if (m_health <= 0.0f) {
             m_controller->setLimp(true);
@@ -111,7 +118,13 @@ public:
     // Accessors
     RagdollEngine::RagdollSkeleton* getSkeleton() { return m_skeleton.get(); }
     RagdollEngine::ActiveRagdollController* getController() { return m_controller.get(); }
-    const RagdollEngine::FighterVisualTheme& getTheme() const { return m_theme; }
+    const RagdollEngine::CharacterDefinition& getTheme() const { return m_charDef; }
+    const RagdollEngine::CharacterDefinition& getCharacterDef() const { return m_charDef; }
+    void setCharacterDef(const RagdollEngine::CharacterDefinition& def) {
+        m_charDef = def;
+        m_name = m_charDef.displayName;
+        m_accentColor = m_charDef.accentColor;
+    }
 
     const std::string& getName() const { return m_name; }
     float getHealth() const { return m_health; }
@@ -132,7 +145,7 @@ private:
 
     std::unique_ptr<RagdollEngine::RagdollSkeleton> m_skeleton;
     std::unique_ptr<RagdollEngine::ActiveRagdollController> m_controller;
-    RagdollEngine::FighterVisualTheme m_theme;
+    RagdollEngine::CharacterDefinition m_charDef;
 
     float m_maxHealth{ 100.0f };
     float m_health{ 100.0f };

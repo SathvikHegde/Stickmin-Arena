@@ -60,42 +60,41 @@ int main() {
     props.push_back(physicsWorld.createDynamicBox(760.0f, 420.0f, 28.0f, 28.0f, 1.2f, 0.6f));
     props.push_back(physicsWorld.createDynamicBox(840.0f, 420.0f, 28.0f, 28.0f, 1.2f, 0.6f));
 
-    // 4. Spawn Fighters
-    // P1: Henry Stickmin (Azure Blue) - Left Side
-    StickminGame::Fighter p1(physicsWorld.getB2WorldId(), 1, "HENRY STICKMIN", sf::Vector2f(550.0f, 735.0f), sf::Color(45, 145, 255));
-    // P2: Ellie Rose (Crimson Red) - Right Side
-    StickminGame::Fighter p2(physicsWorld.getB2WorldId(), 2, "ELLIE ROSE", sf::Vector2f(1050.0f, 735.0f), sf::Color(235, 45, 65));
+    // 4. Spawn Fighters from CharacterRegistry
+    const auto& roster = RagdollEngine::CharacterRegistry::getAllRosterCharacters();
+    size_t p1CharIdx = 0; // Henry Stickmin
+    size_t p2CharIdx = 1; // Ellie Rose
+
+    StickminGame::Fighter p1(physicsWorld.getB2WorldId(), 1, roster[p1CharIdx], sf::Vector2f(550.0f, 735.0f));
+    StickminGame::Fighter p2(physicsWorld.getB2WorldId(), 2, roster[p2CharIdx], sf::Vector2f(1050.0f, 735.0f));
 
     StickminGame::CombatManager combatManager(&p1, &p2);
     combatManager.startRound(1);
 
     std::cout << "====================================================\n";
     std::cout << " Stickmin Arena - Tekken Edition Active Ragdolls!\n";
-    std::cout << " Player 1 (Henry Stickmin - Blue):\n";
+    std::cout << " Roster: Henry, Ellie, Charles Calvin, Reginald, RHM!\n";
+    std::cout << " [F1]: Cycle Player 1 Character\n";
+    std::cout << " [F2]: Cycle Player 2 Character\n";
+    std::cout << " Player 1:\n";
     std::cout << "   A / D       : Move / Guard (Hold Back to Block!)\n";
     std::cout << "   S           : Crouch (Hold Down+Back for Crouch Block!)\n";
     std::cout << "   W           : Jump\n";
     std::cout << "   J           : 1 (LP - Flash Jab)\n";
-    std::cout << "   K           : 2 (RP - Straight Cross)\n";
-    std::cout << "   Fwd + K     : Electric Wind God Fist (EWGF Launcher!)\n";
-    std::cout << "   U           : 3 (LK - Low Sweep)\n";
-    std::cout << "   Down + U    : Hell Sweep (Trips standing opponents!)\n";
-    std::cout << "   I           : 4 (RK - Axe Roundhouse)\n";
-    std::cout << "   Up + I      : Hopkick Launcher!\n";
+    std::cout << "   K           : 2 (RP - Straight Cross / Fwd+K: EWGF!)\n";
+    std::cout << "   U           : 3 (LK - Low Sweep / Down+U: Hell Sweep!)\n";
+    std::cout << "   I           : 4 (RK - Axe Roundhouse / Up+I: Hopkick!)\n";
     std::cout << "   O           : Flying Dropkick\n";
-    std::cout << "   R           : Toggle Limp Ragdoll\n";
-    std::cout << " Player 2 (Ellie Rose - Red):\n";
+    std::cout << " Player 2:\n";
     std::cout << "   Arrows      : Move / Guard / Crouch / Jump\n";
     std::cout << "   Num 1 or ,  : 1 (LP - Flash Jab)\n";
-    std::cout << "   Num 2 or .  : 2 (RP - Straight Cross / Fwd+2 = EWGF!)\n";
-    std::cout << "   Num 4 or /  : 3 (LK - Low Sweep / Down+3 = Hell Sweep!)\n";
-    std::cout << "   Num 5 or ;  : 4 (RK - Axe Roundhouse / Up+4 = Hopkick!)\n";
+    std::cout << "   Num 2 or .  : 2 (RP - Straight Cross / Fwd+2: EWGF!)\n";
+    std::cout << "   Num 4 or /  : 3 (LK - Low Sweep / Down+4: Hell Sweep!)\n";
+    std::cout << "   Num 5 or ;  : 4 (RK - Axe Roundhouse / Up+5: Hopkick!)\n";
     std::cout << "   Num 6 or [  : Flying Dropkick\n";
-    std::cout << "   T           : Toggle Limp Ragdoll\n";
     std::cout << " Global:\n";
     std::cout << "   TAB         : Slow-Mo toggle\n";
     std::cout << "   B / Enter   : Rematch / Reset\n";
-    std::cout << "   Left Click  : Radial Impact Blast\n";
     std::cout << "====================================================\n";
 
     // 5. Main Game Loop
@@ -112,6 +111,22 @@ int main() {
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
                 if (keyPressed->code == sf::Keyboard::Key::Escape) {
                     window.close();
+                }
+
+                // Cycle Player 1 Fighter: F1 or Num7
+                if (keyPressed->code == sf::Keyboard::Key::F1 || keyPressed->code == sf::Keyboard::Key::Numpad7) {
+                    p1CharIdx = (p1CharIdx + 1) % roster.size();
+                    p1.setCharacterDef(roster[p1CharIdx]);
+                    juiceFX.spawnFloatingText(p1.getSkeleton()->getPositionPixels() - sf::Vector2f(0.0f, 65.0f),
+                        p1.getName(), p1.getCharacterDef().accentColor, 1.8f);
+                }
+
+                // Cycle Player 2 Fighter: F2 or Num8
+                if (keyPressed->code == sf::Keyboard::Key::F2 || keyPressed->code == sf::Keyboard::Key::Numpad8) {
+                    p2CharIdx = (p2CharIdx + 1) % roster.size();
+                    p2.setCharacterDef(roster[p2CharIdx]);
+                    juiceFX.spawnFloatingText(p2.getSkeleton()->getPositionPixels() - sf::Vector2f(0.0f, 65.0f),
+                        p2.getName(), p2.getCharacterDef().accentColor, 1.8f);
                 }
 
                 // Rematch / Reset
@@ -378,19 +393,19 @@ int main() {
                 window.draw(p1Ghost);
             }
 
-            // Current Health Bar (Azure Blue for Henry Stickmin)
+            // Current Health Bar (Dynamic character accent color)
             float p1CurWidth = (p1.getHealth() / p1.getMaxHealth()) * barWidth;
             if (p1CurWidth > 0.0f) {
                 sf::RectangleShape p1Fill(sf::Vector2f(p1CurWidth, barHeight));
                 p1Fill.setPosition(sf::Vector2f(90.0f + (barWidth - p1CurWidth), topY));
-                p1Fill.setFillColor(sf::Color(45, 145, 255));
+                p1Fill.setFillColor(p1.getCharacterDef().accentColor);
                 window.draw(p1Fill);
             }
 
-            // P1 Nameplate
+            // P1 Nameplate & Title
             sf::Text p1Name(hudFont, p1.getName(), 18);
             p1Name.setStyle(sf::Text::Bold);
-            p1Name.setFillColor(sf::Color(90, 175, 255));
+            p1Name.setFillColor(p1.getCharacterDef().accentColor);
             p1Name.setPosition(sf::Vector2f(90.0f, topY - 26.0f));
             window.draw(p1Name);
 
@@ -423,19 +438,19 @@ int main() {
                 window.draw(p2Ghost);
             }
 
-            // Current Health Bar (Crimson Red for Ellie Rose)
+            // Current Health Bar (Dynamic character accent color)
             float p2CurWidth = (p2.getHealth() / p2.getMaxHealth()) * barWidth;
             if (p2CurWidth > 0.0f) {
                 sf::RectangleShape p2Fill(sf::Vector2f(p2CurWidth, barHeight));
                 p2Fill.setPosition(sf::Vector2f(950.0f, topY));
-                p2Fill.setFillColor(sf::Color(235, 45, 65));
+                p2Fill.setFillColor(p2.getCharacterDef().accentColor);
                 window.draw(p2Fill);
             }
 
-            // P2 Nameplate
+            // P2 Nameplate & Title
             sf::Text p2Name(hudFont, p2.getName(), 18);
             p2Name.setStyle(sf::Text::Bold);
-            p2Name.setFillColor(sf::Color(255, 90, 105));
+            p2Name.setFillColor(p2.getCharacterDef().accentColor);
             p2Name.setOrigin(sf::Vector2f(p2Name.getLocalBounds().size.x, 0.0f));
             p2Name.setPosition(sf::Vector2f(1510.0f, topY - 26.0f));
             window.draw(p2Name);
@@ -523,10 +538,10 @@ int main() {
                 introText.setPosition(sf::Vector2f(800.0f, 380.0f));
                 window.draw(introText);
             } else if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
-                std::string winnerStr = (combatManager.getRoundWinner() == 1) ? "HENRY STICKMIN WINS!" : "ELLIE ROSE WINS!";
+                std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS!") : (p2.getName() + " WINS!");
                 sf::Text winText(hudFont, winnerStr, 52);
                 winText.setStyle(sf::Text::Bold);
-                winText.setFillColor(combatManager.getRoundWinner() == 1 ? sf::Color(70, 175, 255) : sf::Color(255, 70, 90));
+                winText.setFillColor(combatManager.getRoundWinner() == 1 ? p1.getCharacterDef().accentColor : p2.getCharacterDef().accentColor);
                 winText.setOutlineColor(sf::Color(10, 10, 15));
                 winText.setOutlineThickness(4.0f);
                 winText.setOrigin(sf::Vector2f(winText.getLocalBounds().size.x * 0.5f, winText.getLocalBounds().size.y * 0.5f));
@@ -542,7 +557,7 @@ int main() {
             }
 
             // Bottom Quick Move Reference
-            sf::Text moveHelp(hudFont, "P1: WASD | J: Jab | K: Straight / Fwd+K: EWGF | U: Sweep | I: Axe / Up+I: Hopkick | O: Dropkick | Hold Back to Block\nP2: Arrows | 1: Jab | 2: Straight / Fwd+2: EWGF | 4: Sweep | 5: Axe / Up+5: Hopkick | 6: Dropkick | [B]: Rematch", 13);
+            sf::Text moveHelp(hudFont, "F1: Cycle P1 Character | F2: Cycle P2 Character | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: WASD + J (Jab), K (Cross / Fwd+K: EWGF), U (Sweep), I (Hopkick), O (Dropkick)\nP2: Arrows + Num 1 (Jab), Num 2 (Cross / EWGF), Num 4 (Sweep), Num 5 (Hopkick), Num 6 (Dropkick)", 12);
             moveHelp.setFillColor(sf::Color(150, 165, 185));
             moveHelp.setOrigin(sf::Vector2f(moveHelp.getLocalBounds().size.x * 0.5f, 0.0f));
             moveHelp.setPosition(sf::Vector2f(800.0f, 850.0f));

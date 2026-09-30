@@ -76,6 +76,46 @@ struct RagdollPose {
     float rightHip{ 10.0f };
     float rightKnee{ 15.0f };
 
+    void setFrontArm(int facingDir, float shoulder, float elbow) {
+        if (facingDir > 0) {
+            rightShoulder = shoulder;
+            rightElbow = elbow;
+        } else {
+            leftShoulder = shoulder;
+            leftElbow = elbow;
+        }
+    }
+
+    void setRearArm(int facingDir, float shoulder, float elbow) {
+        if (facingDir > 0) {
+            leftShoulder = shoulder;
+            leftElbow = elbow;
+        } else {
+            rightShoulder = shoulder;
+            rightElbow = elbow;
+        }
+    }
+
+    void setFrontLeg(int facingDir, float hip, float knee) {
+        if (facingDir > 0) {
+            rightHip = hip;
+            rightKnee = knee;
+        } else {
+            leftHip = hip;
+            leftKnee = knee;
+        }
+    }
+
+    void setRearLeg(int facingDir, float hip, float knee) {
+        if (facingDir > 0) {
+            leftHip = hip;
+            leftKnee = knee;
+        } else {
+            rightHip = hip;
+            rightKnee = knee;
+        }
+    }
+
     static RagdollPose makeIdleGuard(int facingDir, float breathePhase);
     static RagdollPose makeHighGuard(int facingDir);
     static RagdollPose makeLowGuard(int facingDir);
@@ -150,7 +190,7 @@ private:
     float m_moveInputY{ 0.0f };
 
     float m_floorY{ 800.0f };
-    float m_standingHeight{ 64.0f };
+    float m_standingHeight{ 48.0f };
 
     // Timers
     float m_stateTimer{ 0.0f };

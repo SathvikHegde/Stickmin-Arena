@@ -10,6 +10,7 @@ add_library(RagdollEngine STATIC
     
     # Render & VFX
     src/Render/RagdollRenderer.cpp
+    src/Render/CharacterRegistry.cpp
     src/Render/JuiceFX.cpp
 )
 

@@ -13,93 +13,53 @@ RagdollPose RagdollPose::makeIdleGuard(int facingDir, float breathePhase) {
     RagdollPose p;
     float s = std::sin(breathePhase);
 
-    p.neck = 1.0f + s * 1.5f;
-    p.spine = 4.0f * facingDir + s * 2.0f; // Subtle martial arts posture
+    // Spine and neck straight and tall with confident upright posture
+    // Slight counter-tilt (-1.2 deg) balances the forward mass of the raised arms
+    p.neck = 0.0f;
+    p.spine = -1.2f * facingDir + s * 0.8f;
 
-    // Arms guarded: lead arm held forward protecting chin, rear arm closer to cheek
-    if (facingDir > 0) {
-        // Facing Right
-        p.rightShoulder = -35.0f;
-        p.rightElbow = 80.0f;
-        p.leftShoulder = 20.0f;
-        p.leftElbow = -85.0f;
+    // FISTS UP! Martial arts boxing guard:
+    // Front arm: upper arm close to body, forearm up guarding chin
+    p.setFrontArm(facingDir, -20.0f * facingDir, -85.0f * facingDir);
 
-        p.rightHip = 8.0f;
-        p.rightKnee = 14.0f + s * 3.0f;
-        p.leftHip = -8.0f;
-        p.leftKnee = -14.0f + s * 3.0f;
-    } else {
-        // Facing Left
-        p.leftShoulder = 35.0f;
-        p.leftElbow = -80.0f;
-        p.rightShoulder = -20.0f;
-        p.rightElbow = 85.0f;
+    // Rear arm: upper arm tucked against torso, forearm up guarding cheek
+    p.setRearArm(facingDir, -10.0f * facingDir, -92.0f * facingDir);
 
-        p.leftHip = -8.0f;
-        p.leftKnee = -14.0f + s * 3.0f;
-        p.rightHip = 8.0f;
-        p.rightKnee = 14.0f + s * 3.0f;
-    }
+    // SOLID CENTERED BASE:
+    // Front leg: hip -11 deg forward, knee +11 deg (shin hangs straight down to floor)
+    p.setFrontLeg(facingDir, -11.0f * facingDir, 11.0f * facingDir + s * 1.0f);
+
+    // Rear leg: hip +11 deg backward, knee -11 deg (shin hangs straight down to floor)
+    p.setRearLeg(facingDir, 11.0f * facingDir, -11.0f * facingDir + s * 1.0f);
+
     return p;
 }
 
 RagdollPose RagdollPose::makeHighGuard(int facingDir) {
     RagdollPose p;
     p.neck = 4.0f;
-    p.spine = -6.0f * facingDir; // Slight defensive backward lean
+    p.spine = -4.0f * facingDir; // Slight defensive brace
 
-    // Tight high cross guard
-    if (facingDir > 0) {
-        p.rightShoulder = -60.0f;
-        p.rightElbow = 100.0f;
-        p.leftShoulder = 50.0f;
-        p.leftElbow = -100.0f;
+    // High crossed guard protecting face
+    p.setFrontArm(facingDir, -50.0f * facingDir, -105.0f * facingDir);
+    p.setRearArm(facingDir, -35.0f * facingDir, -115.0f * facingDir);
 
-        p.rightHip = 12.0f;
-        p.rightKnee = 20.0f;
-        p.leftHip = -12.0f;
-        p.leftKnee = -20.0f;
-    } else {
-        p.leftShoulder = 60.0f;
-        p.leftElbow = -100.0f;
-        p.rightShoulder = -50.0f;
-        p.rightElbow = 100.0f;
-
-        p.leftHip = -12.0f;
-        p.leftKnee = -20.0f;
-        p.rightHip = 12.0f;
-        p.rightKnee = 20.0f;
-    }
+    p.setFrontLeg(facingDir, -14.0f * facingDir, 20.0f * facingDir);
+    p.setRearLeg(facingDir, 12.0f * facingDir, 18.0f * facingDir);
     return p;
 }
 
 RagdollPose RagdollPose::makeLowGuard(int facingDir) {
     RagdollPose p;
-    p.neck = 10.0f;
-    p.spine = 18.0f * facingDir;
+    p.neck = 8.0f;
+    p.spine = 16.0f * facingDir;
 
-    // Deep crouch and low arm protection
-    if (facingDir > 0) {
-        p.rightShoulder = -20.0f;
-        p.rightElbow = 40.0f;
-        p.leftShoulder = 30.0f;
-        p.leftElbow = -70.0f;
+    // Deep crouch with low arm cover
+    p.setFrontArm(facingDir, -18.0f * facingDir, -35.0f * facingDir);
+    p.setRearArm(facingDir, -25.0f * facingDir, -80.0f * facingDir);
 
-        p.rightHip = 42.0f;
-        p.rightKnee = 68.0f;
-        p.leftHip = -42.0f;
-        p.leftKnee = -68.0f;
-    } else {
-        p.leftShoulder = 20.0f;
-        p.leftElbow = -40.0f;
-        p.rightShoulder = -30.0f;
-        p.rightElbow = 70.0f;
-
-        p.leftHip = -42.0f;
-        p.leftKnee = -68.0f;
-        p.rightHip = 42.0f;
-        p.rightKnee = 68.0f;
-    }
+    p.setFrontLeg(facingDir, -32.0f * facingDir, 55.0f * facingDir);
+    p.setRearLeg(facingDir, 24.0f * facingDir, 48.0f * facingDir);
     return p;
 }
 
@@ -107,52 +67,37 @@ RagdollPose RagdollPose::makeWalk(int facingDir, float phase, bool forward) {
     RagdollPose p;
     float s = std::sin(phase);
 
-    p.neck = 2.0f;
+    p.neck = 1.0f;
     p.spine = forward ? (7.0f * facingDir) : (-4.0f * facingDir);
 
-    // Natural rhythmic arm swing and leg stride
-    float armAmp = forward ? 35.0f : 20.0f;
-    float legAmp = forward ? 32.0f : 24.0f;
+    // Natural stepping stride: front and back legs swing back and forth
+    float stride = s * 22.0f;
+    p.setFrontLeg(facingDir, (-8.0f - stride) * facingDir, (s > 0 ? (s * 32.0f + 14.0f) : 12.0f) * facingDir);
+    p.setRearLeg(facingDir, (8.0f + stride) * facingDir, (s < 0 ? (-s * 32.0f + 14.0f) : 12.0f) * facingDir);
 
-    p.rightShoulder = -s * armAmp;
-    p.rightElbow = 65.0f + std::abs(s) * 20.0f;
-    p.leftShoulder = s * armAmp;
-    p.leftElbow = -65.0f - std::abs(s) * 20.0f;
-
-    p.rightHip = s * legAmp;
-    p.rightKnee = (s > 0) ? (s * 48.0f) : 10.0f;
-    p.leftHip = -s * legAmp;
-    p.leftKnee = (s < 0) ? (-s * 48.0f) : -10.0f;
+    // Arms swing in opposition to legs while keeping fists up
+    p.setFrontArm(facingDir, (-25.0f + s * 22.0f) * facingDir, -85.0f * facingDir);
+    p.setRearArm(facingDir, (-15.0f - s * 22.0f) * facingDir, -95.0f * facingDir);
 
     return p;
 }
 
 RagdollPose RagdollPose::makeDash(int facingDir, bool forward) {
     RagdollPose p;
-    p.neck = 8.0f;
+    p.neck = 6.0f;
     p.spine = forward ? (18.0f * facingDir) : (-12.0f * facingDir);
 
     if (forward) {
-        p.rightShoulder = -70.0f * facingDir;
-        p.rightElbow = 40.0f;
-        p.leftShoulder = 40.0f * facingDir;
-        p.leftElbow = -60.0f;
-
-        p.rightHip = 28.0f;
-        p.rightKnee = 40.0f;
-        p.leftHip = -35.0f;
-        p.leftKnee = -20.0f;
+        p.setFrontArm(facingDir, -65.0f * facingDir, -55.0f * facingDir);
+        p.setRearArm(facingDir, 25.0f * facingDir, -70.0f * facingDir);
+        p.setFrontLeg(facingDir, -28.0f * facingDir, 38.0f * facingDir);
+        p.setRearLeg(facingDir, 32.0f * facingDir, 20.0f * facingDir);
     } else {
         // Backdash
-        p.rightShoulder = -40.0f * facingDir;
-        p.rightElbow = 85.0f;
-        p.leftShoulder = 40.0f * facingDir;
-        p.leftElbow = -85.0f;
-
-        p.rightHip = -15.0f;
-        p.rightKnee = -30.0f;
-        p.leftHip = 15.0f;
-        p.leftKnee = 30.0f;
+        p.setFrontArm(facingDir, -35.0f * facingDir, -95.0f * facingDir);
+        p.setRearArm(facingDir, -20.0f * facingDir, -100.0f * facingDir);
+        p.setFrontLeg(facingDir, 15.0f * facingDir, 25.0f * facingDir);
+        p.setRearLeg(facingDir, -18.0f * facingDir, 28.0f * facingDir);
     }
     return p;
 }
@@ -160,25 +105,18 @@ RagdollPose RagdollPose::makeDash(int facingDir, bool forward) {
 RagdollPose RagdollPose::makeJab(int facingDir, float progress) {
     RagdollPose p = makeIdleGuard(facingDir, 0.0f);
 
-    float ext = 0.0f;
-    if (progress < 0.35f) {
-        ext = progress / 0.35f; // Startup windup
-    } else if (progress < 0.65f) {
-        ext = 1.0f; // Peak extension
-    } else {
-        ext = 1.0f - (progress - 0.65f) / 0.35f; // Snappy return
-    }
+    float ext = (progress < 0.35f) ? (progress / 0.35f)
+              : (progress < 0.65f) ? 1.0f
+              : (1.0f - (progress - 0.65f) / 0.35f);
 
-    p.spine = (6.0f + ext * 12.0f) * facingDir;
+    p.spine = (5.0f + ext * 12.0f) * facingDir;
 
-    // Fast lead jab thrust
-    if (facingDir > 0) {
-        p.rightShoulder = -35.0f - ext * 55.0f; // -90 peak
-        p.rightElbow = 80.0f - ext * 75.0f;    // 5 deg extended
-    } else {
-        p.leftShoulder = 35.0f + ext * 55.0f;
-        p.leftElbow = -80.0f + ext * 75.0f;
-    }
+    // Front arm extends straight forward
+    p.setFrontArm(facingDir, (-28.0f - ext * 58.0f) * facingDir, (-85.0f + ext * 82.0f) * facingDir);
+    p.setRearArm(facingDir, -14.0f * facingDir, -100.0f * facingDir);
+
+    p.setFrontLeg(facingDir, -15.0f * facingDir, 18.0f * facingDir);
+    p.setRearLeg(facingDir, 14.0f * facingDir, 14.0f * facingDir);
     return p;
 }
 
@@ -189,20 +127,14 @@ RagdollPose RagdollPose::makeCross(int facingDir, float progress) {
               : (progress < 0.70f) ? 1.0f
               : (1.0f - (progress - 0.70f) / 0.30f);
 
-    p.spine = (4.0f + ext * 22.0f) * facingDir;
+    p.spine = (4.0f + ext * 20.0f) * facingDir;
 
-    // Rear straight punch with full hip drive
-    if (facingDir > 0) {
-        p.leftShoulder = 20.0f - ext * 110.0f;
-        p.leftElbow = -85.0f + ext * 80.0f;
-        p.rightShoulder = -20.0f;
-        p.rightElbow = 85.0f;
-    } else {
-        p.rightShoulder = -20.0f + ext * 110.0f;
-        p.rightElbow = 85.0f - ext * 80.0f;
-        p.leftShoulder = 20.0f;
-        p.leftElbow = -85.0f;
-    }
+    // Rear arm unleashes heavy cross
+    p.setRearArm(facingDir, (-14.0f - ext * 72.0f) * facingDir, (-95.0f + ext * 90.0f) * facingDir);
+    p.setFrontArm(facingDir, -20.0f * facingDir, -100.0f * facingDir);
+
+    p.setFrontLeg(facingDir, -18.0f * facingDir, 22.0f * facingDir);
+    p.setRearLeg(facingDir, (12.0f - ext * 8.0f) * facingDir, 16.0f * facingDir);
     return p;
 }
 
@@ -210,36 +142,21 @@ RagdollPose RagdollPose::makeEWGF(int facingDir, float progress) {
     RagdollPose p = makeIdleGuard(facingDir, 0.0f);
 
     if (progress < 0.30f) {
-        // Deep crouch dash setup
         float t = progress / 0.30f;
-        p.spine = 24.0f * facingDir;
-        p.rightShoulder = -10.0f;
-        p.rightElbow = 95.0f;
-        p.leftShoulder = 10.0f;
-        p.leftElbow = -95.0f;
-        p.rightHip = 35.0f * t;
-        p.rightKnee = 55.0f * t;
-        p.leftHip = -35.0f * t;
-        p.leftKnee = -55.0f * t;
+        p.spine = 22.0f * facingDir;
+        p.setFrontArm(facingDir, -15.0f * facingDir, -95.0f * facingDir);
+        p.setRearArm(facingDir, -10.0f * facingDir, -95.0f * facingDir);
+        p.setFrontLeg(facingDir, -28.0f * facingDir * t, 48.0f * facingDir * t);
+        p.setRearLeg(facingDir, 22.0f * facingDir * t, 42.0f * facingDir * t);
     } else if (progress < 0.70f) {
-        // Explosive rising uppercut!
-        float t = (progress - 0.30f) / 0.40f;
-        p.neck = -15.0f;
-        p.spine = -14.0f * facingDir; // Arched back from explosive vertical drive
-        if (facingDir > 0) {
-            p.rightShoulder = -125.0f; // Driving skyward
-            p.rightElbow = 25.0f;
-            p.leftShoulder = 30.0f;
-            p.leftElbow = -85.0f;
-        } else {
-            p.leftShoulder = 125.0f;
-            p.leftElbow = -25.0f;
-            p.rightShoulder = -30.0f;
-            p.rightElbow = 85.0f;
-        }
+        // Explosive rising electric uppercut!
+        p.neck = -12.0f * facingDir;
+        p.spine = -14.0f * facingDir;
+        p.setFrontArm(facingDir, -135.0f * facingDir, -20.0f * facingDir);
+        p.setRearArm(facingDir, 20.0f * facingDir, -85.0f * facingDir);
+        p.setFrontLeg(facingDir, -16.0f * facingDir, 18.0f * facingDir);
+        p.setRearLeg(facingDir, 12.0f * facingDir, 16.0f * facingDir);
     } else {
-        // Recovery
-        float t = (progress - 0.70f) / 0.30f;
         p = makeIdleGuard(facingDir, 0.0f);
     }
     return p;
@@ -251,26 +168,15 @@ RagdollPose RagdollPose::makeHellSweep(int facingDir, float progress) {
               : (progress < 0.70f) ? 1.0f
               : (1.0f - (progress - 0.70f) / 0.30f);
 
-    p.neck = 12.0f;
-    p.spine = 22.0f * facingDir;
+    p.neck = 10.0f;
+    p.spine = 20.0f * facingDir;
 
-    // Sweeping leg travels horizontally along floor
-    if (facingDir > 0) {
-        p.rightHip = -ext * 85.0f;
-        p.rightKnee = 5.0f;
-        p.leftHip = 35.0f;
-        p.leftKnee = 60.0f;
-    } else {
-        p.leftHip = ext * 85.0f;
-        p.leftKnee = -5.0f;
-        p.rightHip = -35.0f;
-        p.rightKnee = -60.0f;
-    }
+    // Rear leg sweeps straight forward along floor
+    p.setRearLeg(facingDir, (-ext * 85.0f) * facingDir, 6.0f * facingDir);
+    p.setFrontLeg(facingDir, 32.0f * facingDir, 58.0f * facingDir);
 
-    p.leftShoulder = 35.0f;
-    p.leftElbow = -80.0f;
-    p.rightShoulder = -35.0f;
-    p.rightElbow = 80.0f;
+    p.setFrontArm(facingDir, -20.0f * facingDir, -85.0f * facingDir);
+    p.setRearArm(facingDir, -15.0f * facingDir, -85.0f * facingDir);
 
     return p;
 }
@@ -282,19 +188,15 @@ RagdollPose RagdollPose::makeRoundhouse(int facingDir, float progress) {
               : (progress < 0.70f) ? 1.0f
               : (1.0f - (progress - 0.70f) / 0.30f);
 
-    p.spine = -18.0f * facingDir; // Lean back for high kick
+    p.spine = -18.0f * facingDir;
 
-    if (facingDir > 0) {
-        p.rightHip = -ext * 95.0f;
-        p.rightKnee = (1.0f - ext) * 60.0f + ext * 8.0f; // Chamber then whip out
-        p.leftHip = 15.0f;
-        p.leftKnee = 18.0f;
-    } else {
-        p.leftHip = ext * 95.0f;
-        p.leftKnee = -(1.0f - ext) * 60.0f - ext * 8.0f;
-        p.rightHip = -15.0f;
-        p.rightKnee = -18.0f;
-    }
+    // Front leg executes high whip kick
+    p.setFrontLeg(facingDir, (-ext * 95.0f) * facingDir, ((1.0f - ext) * 55.0f + ext * 6.0f) * facingDir);
+    p.setRearLeg(facingDir, 14.0f * facingDir, 16.0f * facingDir);
+
+    p.setFrontArm(facingDir, 25.0f * facingDir, -65.0f * facingDir);
+    p.setRearArm(facingDir, -30.0f * facingDir, -95.0f * facingDir);
+
     return p;
 }
 
@@ -304,25 +206,15 @@ RagdollPose RagdollPose::makeHopkick(int facingDir, float progress) {
               : (progress < 0.65f) ? 1.0f
               : (1.0f - (progress - 0.65f) / 0.35f);
 
-    p.neck = -8.0f;
+    p.neck = -6.0f * facingDir;
     p.spine = -10.0f * facingDir;
 
-    // Upward rising snap kick
-    if (facingDir > 0) {
-        p.rightHip = -ext * 90.0f;
-        p.rightKnee = 12.0f;
-        p.leftHip = 25.0f;
-        p.leftKnee = 45.0f;
-    } else {
-        p.leftHip = ext * 90.0f;
-        p.leftKnee = -12.0f;
-        p.rightHip = -25.0f;
-        p.rightKnee = -45.0f;
-    }
-    p.leftShoulder = 50.0f;
-    p.leftElbow = -60.0f;
-    p.rightShoulder = -50.0f;
-    p.rightElbow = 60.0f;
+    // Front leg snaps upwards into chin
+    p.setFrontLeg(facingDir, (-ext * 92.0f) * facingDir, 8.0f * facingDir);
+    p.setRearLeg(facingDir, 22.0f * facingDir, 45.0f * facingDir);
+
+    p.setFrontArm(facingDir, -40.0f * facingDir, -60.0f * facingDir);
+    p.setRearArm(facingDir, 30.0f * facingDir, -70.0f * facingDir);
 
     return p;
 }
@@ -332,34 +224,27 @@ RagdollPose RagdollPose::makeDropkick(int facingDir, float progress) {
     p.neck = 10.0f;
     p.spine = 15.0f * facingDir;
 
-    // Horizontal flying kick with both feet extended
-    p.leftHip = -70.0f * facingDir;
-    p.leftKnee = 5.0f;
-    p.rightHip = -75.0f * facingDir;
-    p.rightKnee = 8.0f;
+    p.leftHip = -75.0f * facingDir;
+    p.leftKnee = 8.0f * facingDir;
+    p.rightHip = -70.0f * facingDir;
+    p.rightKnee = 8.0f * facingDir;
 
-    p.leftShoulder = 60.0f;
-    p.leftElbow = -40.0f;
-    p.rightShoulder = -60.0f;
-    p.rightElbow = 40.0f;
+    p.setFrontArm(facingDir, -60.0f * facingDir, -40.0f * facingDir);
+    p.setRearArm(facingDir, 40.0f * facingDir, -40.0f * facingDir);
 
     return p;
 }
 
 RagdollPose RagdollPose::makeHitStun(int facingDir) {
     RagdollPose p;
-    p.neck = -18.0f;
-    p.spine = -22.0f * facingDir; // Reeling back from impact
+    p.neck = -16.0f * facingDir;
+    p.spine = -20.0f * facingDir; // Reeling backward
 
-    p.leftShoulder = 45.0f;
-    p.leftElbow = -40.0f;
-    p.rightShoulder = -45.0f;
-    p.rightElbow = 40.0f;
+    p.setFrontArm(facingDir, 35.0f * facingDir, -40.0f * facingDir);
+    p.setRearArm(facingDir, 25.0f * facingDir, -45.0f * facingDir);
 
-    p.leftHip = -15.0f;
-    p.leftKnee = -25.0f;
-    p.rightHip = 15.0f;
-    p.rightKnee = 25.0f;
+    p.setFrontLeg(facingDir, -8.0f * facingDir, 22.0f * facingDir);
+    p.setRearLeg(facingDir, 18.0f * facingDir, 18.0f * facingDir);
 
     return p;
 }
@@ -371,15 +256,15 @@ RagdollPose RagdollPose::makeAirJuggle(float airborneTime) {
     p.neck = s * 10.0f;
     p.spine = s * 12.0f;
 
-    p.leftShoulder = 40.0f + s * 25.0f;
+    p.leftShoulder = 30.0f + s * 25.0f;
     p.leftElbow = -35.0f;
-    p.rightShoulder = -40.0f - s * 25.0f;
-    p.rightElbow = 35.0f;
+    p.rightShoulder = -30.0f - s * 25.0f;
+    p.rightElbow = -35.0f;
 
-    p.leftHip = -30.0f + s * 20.0f;
-    p.leftKnee = -45.0f;
-    p.rightHip = 30.0f - s * 20.0f;
-    p.rightKnee = 45.0f;
+    p.leftHip = -20.0f + s * 15.0f;
+    p.leftKnee = 30.0f;
+    p.rightHip = 20.0f - s * 15.0f;
+    p.rightKnee = 30.0f;
 
     return p;
 }
@@ -388,32 +273,29 @@ RagdollPose RagdollPose::makeKnockedDown() {
     RagdollPose p;
     p.neck = 0.0f;
     p.spine = 0.0f;
-    p.leftShoulder = 30.0f;
+    p.leftShoulder = 20.0f;
     p.leftElbow = -15.0f;
-    p.rightShoulder = -30.0f;
-    p.rightElbow = 15.0f;
+    p.rightShoulder = -20.0f;
+    p.rightElbow = -15.0f;
     p.leftHip = 10.0f;
     p.leftKnee = 15.0f;
     p.rightHip = -10.0f;
-    p.rightKnee = -15.0f;
+    p.rightKnee = 15.0f;
     return p;
 }
 
 RagdollPose RagdollPose::makeTechRoll(float progress) {
     RagdollPose p;
-    float rollAngle = progress * 360.0f;
-
-    // Tuck knees to chest then spring up
     p.spine = 15.0f;
-    p.leftHip = -60.0f * (1.0f - progress);
-    p.leftKnee = -80.0f * (1.0f - progress);
-    p.rightHip = 60.0f * (1.0f - progress);
-    p.rightKnee = 80.0f * (1.0f - progress);
+    p.leftHip = -50.0f * (1.0f - progress);
+    p.leftKnee = 70.0f * (1.0f - progress);
+    p.rightHip = 50.0f * (1.0f - progress);
+    p.rightKnee = 70.0f * (1.0f - progress);
 
-    p.leftShoulder = 40.0f;
+    p.leftShoulder = 35.0f;
     p.leftElbow = -60.0f;
-    p.rightShoulder = -40.0f;
-    p.rightElbow = 60.0f;
+    p.rightShoulder = -35.0f;
+    p.rightElbow = -60.0f;
 
     return p;
 }
@@ -1027,8 +909,8 @@ void ActiveRagdollController::applyUprightStabilizer() {
     if (m_actionState == FighterActionState::MovingForward) desiredAngle = m_facingDir * 0.08f;
     if (m_actionState == FighterActionState::MovingBackward) desiredAngle = -m_facingDir * 0.05f;
 
-    float Kp = 24.0f;
-    float Kd = 3.2f;
+    float Kp = 32.0f;
+    float Kd = 4.2f;
     float uprightTorque = -Kp * (currentAngle - desiredAngle) - Kd * angularVel;
     b2Body_ApplyTorque(torso, uprightTorque, true);
 
@@ -1037,7 +919,7 @@ void ActiveRagdollController::applyUprightStabilizer() {
         b2Rot hipsRot = b2Body_GetRotation(hips);
         float hipsAngle = b2Rot_GetAngle(hipsRot);
         float hipsAngVel = b2Body_GetAngularVelocity(hips);
-        b2Body_ApplyTorque(hips, -Kp * 0.4f * hipsAngle - Kd * 0.4f * hipsAngVel, true);
+        b2Body_ApplyTorque(hips, -Kp * 0.6f * hipsAngle - Kd * 0.5f * hipsAngVel, true);
     }
 }
 

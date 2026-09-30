@@ -209,26 +209,26 @@ void RagdollSkeleton::assembleLimbs(const sf::Vector2f& spawnPosPixels) {
     };
 
     // Neck: Torso top to Head bottom
-    m_joints[static_cast<size_t>(JointType::Neck)] = createJoint(torso, head, sf::Vector2f(cx, cy - (TORSO_HEIGHT * 0.5f)), -35.0f, 35.0f, 16.0f);
+    m_joints[static_cast<size_t>(JointType::Neck)] = createJoint(torso, head, sf::Vector2f(cx, cy - (TORSO_HEIGHT * 0.5f)), -45.0f, 45.0f, 16.0f);
 
     // Spine: Torso bottom to Hips top (Strong core spring)
-    m_joints[static_cast<size_t>(JointType::Spine)] = createJoint(torso, hips, sf::Vector2f(cx, cy + (TORSO_HEIGHT * 0.5f)), -25.0f, 25.0f, 18.0f);
+    m_joints[static_cast<size_t>(JointType::Spine)] = createJoint(torso, hips, sf::Vector2f(cx, cy + (TORSO_HEIGHT * 0.5f)), -35.0f, 35.0f, 18.0f);
 
-    // Shoulders
-    m_joints[static_cast<size_t>(JointType::LeftShoulder)] = createJoint(torso, leftUpperArm, sf::Vector2f(cx - 8.0f, armY), -150.0f, 150.0f, 12.0f);
-    m_joints[static_cast<size_t>(JointType::RightShoulder)] = createJoint(torso, rightUpperArm, sf::Vector2f(cx + 8.0f, armY), -150.0f, 150.0f, 12.0f);
+    // Shoulders (Natural 360-degree martial arts flexibility)
+    m_joints[static_cast<size_t>(JointType::LeftShoulder)] = createJoint(torso, leftUpperArm, sf::Vector2f(cx - 8.0f, armY), -175.0f, 175.0f, 14.0f);
+    m_joints[static_cast<size_t>(JointType::RightShoulder)] = createJoint(torso, rightUpperArm, sf::Vector2f(cx + 8.0f, armY), -175.0f, 175.0f, 14.0f);
 
-    // Elbows
-    m_joints[static_cast<size_t>(JointType::LeftElbow)] = createJoint(leftUpperArm, leftForearm, sf::Vector2f(cx - 8.0f, armY + UPPER_ARM_LEN), -140.0f, 10.0f, 14.0f);
-    m_joints[static_cast<size_t>(JointType::RightElbow)] = createJoint(rightUpperArm, rightForearm, sf::Vector2f(cx + 8.0f, armY + UPPER_ARM_LEN), -10.0f, 140.0f, 14.0f);
+    // Elbows (Full natural range for both arms in either facing direction)
+    m_joints[static_cast<size_t>(JointType::LeftElbow)] = createJoint(leftUpperArm, leftForearm, sf::Vector2f(cx - 8.0f, armY + UPPER_ARM_LEN), -160.0f, 160.0f, 16.0f);
+    m_joints[static_cast<size_t>(JointType::RightElbow)] = createJoint(rightUpperArm, rightForearm, sf::Vector2f(cx + 8.0f, armY + UPPER_ARM_LEN), -160.0f, 160.0f, 16.0f);
 
-    // Hips to Thighs (Strong leg support)
-    m_joints[static_cast<size_t>(JointType::LeftHip)] = createJoint(hips, leftThigh, sf::Vector2f(cx - 5.0f, legY), -75.0f, 75.0f, 16.0f);
-    m_joints[static_cast<size_t>(JointType::RightHip)] = createJoint(hips, rightThigh, sf::Vector2f(cx + 5.0f, legY), -75.0f, 75.0f, 16.0f);
+    // Hips to Thighs (Wide athletic base without crossing)
+    m_joints[static_cast<size_t>(JointType::LeftHip)] = createJoint(hips, leftThigh, sf::Vector2f(cx - 5.0f, legY), -120.0f, 120.0f, 16.0f);
+    m_joints[static_cast<size_t>(JointType::RightHip)] = createJoint(hips, rightThigh, sf::Vector2f(cx + 5.0f, legY), -120.0f, 120.0f, 16.0f);
 
-    // Knees
-    m_joints[static_cast<size_t>(JointType::LeftKnee)] = createJoint(leftThigh, leftShin, sf::Vector2f(cx - 5.0f, legY + THIGH_LEN), -130.0f, 10.0f, 16.0f);
-    m_joints[static_cast<size_t>(JointType::RightKnee)] = createJoint(rightThigh, rightShin, sf::Vector2f(cx + 5.0f, legY + THIGH_LEN), -10.0f, 130.0f, 16.0f);
+    // Knees (Natural bending range for both legs in either facing direction)
+    m_joints[static_cast<size_t>(JointType::LeftKnee)] = createJoint(leftThigh, leftShin, sf::Vector2f(cx - 5.0f, legY + THIGH_LEN), -150.0f, 150.0f, 16.0f);
+    m_joints[static_cast<size_t>(JointType::RightKnee)] = createJoint(rightThigh, rightShin, sf::Vector2f(cx + 5.0f, legY + THIGH_LEN), -150.0f, 150.0f, 16.0f);
 }
 
 } // namespace RagdollEngine

@@ -1,30 +1,29 @@
 #pragma once
 #include "RagdollEngine/Physics/RagdollSkeleton.hpp"
+#include "RagdollEngine/Render/CharacterDef.hpp"
 #include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Color.hpp>
 
 namespace RagdollEngine {
 
-struct FighterVisualTheme {
-    sf::Color bodyColor{ sf::Color(25, 25, 30) };        // Sharp dark stick body
-    sf::Color headFillColor{ sf::Color(245, 245, 250) };   // White head
-    sf::Color headOutlineColor{ sf::Color(20, 20, 25) };  // Crisp black outline
-    sf::Color accentColor{ sf::Color(230, 45, 65) };      // Headband / belt accent (P1 = Red)
-    float lineThickness{ 5.5f };
-    bool glowingEyes{ false };
-    sf::Color eyeGlowColor{ sf::Color(255, 220, 60) };
-};
+using FighterVisualTheme = CharacterDefinition;
 
 class RagdollRenderer {
 public:
     RagdollRenderer();
 
-    void draw(sf::RenderWindow& window, const RagdollSkeleton& skeleton, int facingDir, const FighterVisualTheme& theme);
+    void draw(sf::RenderWindow& window, const RagdollSkeleton& skeleton, int facingDir, const CharacterDefinition& character);
     void drawDropShadow(sf::RenderWindow& window, const RagdollSkeleton& skeleton, float groundY = 800.0f);
 
 private:
     void drawLimbSegment(sf::RenderWindow& window, b2BodyId body, float halfWidthPixels, float halfHeightPixels, const sf::Color& color);
-    void drawHead(sf::RenderWindow& window, b2BodyId headBody, int facingDir, const FighterVisualTheme& theme);
+    void drawShoe(sf::RenderWindow& window, b2BodyId shinBody, int facingDir, const CharacterDefinition& character);
+    void drawHand(sf::RenderWindow& window, b2BodyId forearmBody, int facingDir, const CharacterDefinition& character);
+    
+    // Head & Accessories
+    void drawHead(sf::RenderWindow& window, b2BodyId headBody, int facingDir, const CharacterDefinition& character);
+    void drawBackCosmetics(sf::RenderWindow& window, const sf::Vector2f& headPos, float headRad, int facingDir, const CharacterDefinition& character);
+    void drawFrontCosmetics(sf::RenderWindow& window, const sf::Vector2f& headPos, float headRad, int facingDir, const CharacterDefinition& character);
+    void drawFace(sf::RenderWindow& window, const sf::Vector2f& headPos, float headRad, float headAngleRad, int facingDir, const CharacterDefinition& character);
 };
 
 } // namespace RagdollEngine
