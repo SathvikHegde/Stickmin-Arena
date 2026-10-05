@@ -11,94 +11,100 @@ namespace RagdollEngine {
 
 RagdollPose RagdollPose::makeIdleGuard(int facingDir, float breathePhase) {
     RagdollPose p;
-    float s = std::sin(breathePhase);
 
     // Spine and neck straight and tall with confident upright posture
-    // Slight counter-tilt (-1.2 deg) balances the forward mass of the raised arms
     p.neck = 0.0f;
-    p.spine = -1.2f * facingDir + s * 0.8f;
+    p.spine = 0.0f;
 
     // FISTS UP! Martial arts boxing guard:
-    // Front arm: upper arm close to body, forearm up guarding chin
-    p.setFrontArm(facingDir, -20.0f * facingDir, -85.0f * facingDir);
+    // Front arm: tucked close to body guarding chin
+    p.setFrontArm(facingDir, -18.0f * facingDir, -80.0f * facingDir);
 
-    // Rear arm: upper arm tucked against torso, forearm up guarding cheek
-    p.setRearArm(facingDir, -10.0f * facingDir, -92.0f * facingDir);
+    // Rear arm: tucked against torso guarding cheek
+    p.setRearArm(facingDir, -8.0f * facingDir, -88.0f * facingDir);
 
-    // SOLID CENTERED BASE:
-    // Front leg: hip -11 deg forward, knee +11 deg (shin hangs straight down to floor)
-    p.setFrontLeg(facingDir, -11.0f * facingDir, 11.0f * facingDir + s * 1.0f);
-
-    // Rear leg: hip +11 deg backward, knee -11 deg (shin hangs straight down to floor)
-    p.setRearLeg(facingDir, 11.0f * facingDir, -11.0f * facingDir + s * 1.0f);
+    // SOLID CENTERED ATHLETIC BASE:
+    // Feet naturally close together directly under hips
+    p.setFrontLeg(facingDir, 3.0f * facingDir, 3.0f * facingDir);
+    p.setRearLeg(facingDir, -2.0f * facingDir, -2.0f * facingDir);
 
     return p;
 }
 
 RagdollPose RagdollPose::makeHighGuard(int facingDir) {
     RagdollPose p;
-    p.neck = 4.0f;
-    p.spine = -4.0f * facingDir; // Slight defensive brace
+    p.neck = 0.0f;
+    p.spine = 0.0f;
 
     // High crossed guard protecting face
     p.setFrontArm(facingDir, -50.0f * facingDir, -105.0f * facingDir);
     p.setRearArm(facingDir, -35.0f * facingDir, -115.0f * facingDir);
 
-    p.setFrontLeg(facingDir, -14.0f * facingDir, 20.0f * facingDir);
-    p.setRearLeg(facingDir, 12.0f * facingDir, 18.0f * facingDir);
+    p.setFrontLeg(facingDir, 3.0f * facingDir, 3.0f * facingDir);
+    p.setRearLeg(facingDir, -2.0f * facingDir, -2.0f * facingDir);
     return p;
 }
 
 RagdollPose RagdollPose::makeLowGuard(int facingDir) {
     RagdollPose p;
-    p.neck = 8.0f;
-    p.spine = 16.0f * facingDir;
+    p.neck = 4.0f;
+    p.spine = 10.0f * facingDir;
 
     // Deep crouch with low arm cover
     p.setFrontArm(facingDir, -18.0f * facingDir, -35.0f * facingDir);
     p.setRearArm(facingDir, -25.0f * facingDir, -80.0f * facingDir);
 
-    p.setFrontLeg(facingDir, -32.0f * facingDir, 55.0f * facingDir);
-    p.setRearLeg(facingDir, 24.0f * facingDir, 48.0f * facingDir);
+    p.setFrontLeg(facingDir, 14.0f * facingDir, 28.0f * facingDir);
+    p.setRearLeg(facingDir, -10.0f * facingDir, 28.0f * facingDir);
     return p;
 }
 
 RagdollPose RagdollPose::makeWalk(int facingDir, float phase, bool forward) {
     RagdollPose p;
     float s = std::sin(phase);
+    float c = std::cos(phase);
 
-    p.neck = 1.0f;
-    p.spine = forward ? (7.0f * facingDir) : (-4.0f * facingDir);
+    // Spine and neck straight with slight dynamic counter-lean against movement inertia
+    p.neck = 0.0f;
+    p.spine = forward ? (-2.5f * facingDir) : (1.5f * facingDir);
 
-    // Natural stepping stride: front and back legs swing back and forth
-    float stride = s * 22.0f;
-    p.setFrontLeg(facingDir, (-8.0f - stride) * facingDir, (s > 0 ? (s * 32.0f + 14.0f) : 12.0f) * facingDir);
-    p.setRearLeg(facingDir, (8.0f + stride) * facingDir, (s < 0 ? (-s * 32.0f + 14.0f) : 12.0f) * facingDir);
+    float dirMult = forward ? 1.0f : -1.0f;
 
-    // Arms swing in opposition to legs while keeping fists up
-    p.setFrontArm(facingDir, (-25.0f + s * 22.0f) * facingDir, -85.0f * facingDir);
-    p.setRearArm(facingDir, (-15.0f - s * 22.0f) * facingDir, -95.0f * facingDir);
+    // Fluid athletic martial arts stride
+    float stride = s * 16.0f * dirMult;
+
+    // Front leg: swings forward and lifts knee on upswing to clear the ground
+    float frontHip = (3.0f - stride) * facingDir;
+    float frontKnee = (s * dirMult > 0.0f ? (10.0f + s * dirMult * 20.0f) : 5.0f) * facingDir;
+
+    // Rear leg: opposite phase with ground-clearance knee lift
+    float rearHip = (-2.0f + stride) * facingDir;
+    float rearKnee = (s * dirMult < 0.0f ? (10.0f - s * dirMult * 20.0f) : 5.0f) * facingDir;
+
+    p.setFrontLeg(facingDir, frontHip, frontKnee);
+    p.setRearLeg(facingDir, rearHip, rearKnee);
+
+    // Martial arts guard maintained while stepping with subtle athletic arm sway
+    float armSway = c * 3.5f;
+    p.setFrontArm(facingDir, (-18.0f + armSway) * facingDir, -80.0f * facingDir);
+    p.setRearArm(facingDir, (-8.0f - armSway) * facingDir, -88.0f * facingDir);
 
     return p;
 }
 
 RagdollPose RagdollPose::makeDash(int facingDir, bool forward) {
     RagdollPose p;
-    p.neck = 6.0f;
-    p.spine = forward ? (18.0f * facingDir) : (-12.0f * facingDir);
 
-    if (forward) {
-        p.setFrontArm(facingDir, -65.0f * facingDir, -55.0f * facingDir);
-        p.setRearArm(facingDir, 25.0f * facingDir, -70.0f * facingDir);
-        p.setFrontLeg(facingDir, -28.0f * facingDir, 38.0f * facingDir);
-        p.setRearLeg(facingDir, 32.0f * facingDir, 20.0f * facingDir);
-    } else {
-        // Backdash
-        p.setFrontArm(facingDir, -35.0f * facingDir, -95.0f * facingDir);
-        p.setRearArm(facingDir, -20.0f * facingDir, -100.0f * facingDir);
-        p.setFrontLeg(facingDir, 15.0f * facingDir, 25.0f * facingDir);
-        p.setRearLeg(facingDir, -18.0f * facingDir, 28.0f * facingDir);
-    }
+    // Upright stance during dashes
+    p.neck = 0.0f;
+    p.spine = 0.0f;
+
+    p.setFrontArm(facingDir, -22.0f * facingDir, -82.0f * facingDir);
+    p.setRearArm(facingDir, -12.0f * facingDir, -88.0f * facingDir);
+
+    p.setFrontLeg(facingDir, 5.0f * facingDir, 8.0f * facingDir);
+    p.setRearLeg(facingDir, -4.0f * facingDir, 8.0f * facingDir);
+
     return p;
 }
 
@@ -135,6 +141,39 @@ RagdollPose RagdollPose::makeCross(int facingDir, float progress) {
 
     p.setFrontLeg(facingDir, -18.0f * facingDir, 22.0f * facingDir);
     p.setRearLeg(facingDir, (12.0f - ext * 8.0f) * facingDir, 16.0f * facingDir);
+    return p;
+}
+
+RagdollPose RagdollPose::makeOneTwo(int facingDir, float progress) {
+    RagdollPose p = makeIdleGuard(facingDir, 0.0f);
+    if (progress < 0.45f) {
+        // 1: Rapid front jab
+        float ext = (progress < 0.22f) ? (progress / 0.22f) : (1.0f - (progress - 0.22f) / 0.23f);
+        p.spine = (ext * 8.0f) * facingDir;
+        p.setFrontArm(facingDir, (-25.0f - ext * 60.0f) * facingDir, (-85.0f + ext * 80.0f) * facingDir);
+        p.setRearArm(facingDir, -10.0f * facingDir, -95.0f * facingDir);
+    } else {
+        // 2: Instant follow-up rear straight cross
+        float t = (progress - 0.45f) / 0.55f;
+        float ext = (t < 0.40f) ? (t / 0.40f) : (1.0f - (t - 0.40f) / 0.60f);
+        p.spine = (ext * 16.0f) * facingDir;
+        p.setFrontArm(facingDir, -18.0f * facingDir, -90.0f * facingDir);
+        p.setRearArm(facingDir, (-12.0f - ext * 75.0f) * facingDir, (-95.0f + ext * 90.0f) * facingDir);
+    }
+    return p;
+}
+
+RagdollPose RagdollPose::makeMidKick(int facingDir, float progress) {
+    RagdollPose p = makeIdleGuard(facingDir, 0.0f);
+    float ext = (progress < 0.35f) ? (progress / 0.35f)
+              : (progress < 0.65f) ? 1.0f
+              : (1.0f - (progress - 0.65f) / 0.35f);
+
+    p.spine = -6.0f * facingDir;
+    p.setFrontLeg(facingDir, (-ext * 72.0f) * facingDir, (ext * 12.0f) * facingDir);
+    p.setRearLeg(facingDir, 10.0f * facingDir, -8.0f * facingDir);
+    p.setFrontArm(facingDir, -15.0f * facingDir, -75.0f * facingDir);
+    p.setRearArm(facingDir, -10.0f * facingDir, -85.0f * facingDir);
     return p;
 }
 
@@ -232,6 +271,80 @@ RagdollPose RagdollPose::makeDropkick(int facingDir, float progress) {
     p.setFrontArm(facingDir, -60.0f * facingDir, -40.0f * facingDir);
     p.setRearArm(facingDir, 40.0f * facingDir, -40.0f * facingDir);
 
+    return p;
+}
+
+RagdollPose RagdollPose::makePowerCrush(int facingDir, float progress) {
+    RagdollPose p;
+    if (progress < 0.45f) {
+        // Armored wind-up stance
+        float t = progress / 0.45f;
+        p.neck = -4.0f * facingDir;
+        p.spine = -12.0f * facingDir * t;
+        p.setFrontArm(facingDir, -42.0f * facingDir, -115.0f * facingDir);
+        p.setRearArm(facingDir, -38.0f * facingDir, -115.0f * facingDir);
+        p.setFrontLeg(facingDir, -16.0f * facingDir, 24.0f * facingDir);
+        p.setRearLeg(facingDir, 18.0f * facingDir, 20.0f * facingDir);
+    } else {
+        // Devastating armored lunging chest blow!
+        float t = (progress - 0.45f) / 0.55f;
+        float ext = (t < 0.35f) ? (t / 0.35f) : (1.0f - (t - 0.35f) / 0.65f);
+        p.neck = 4.0f * facingDir;
+        p.spine = (24.0f * ext) * facingDir;
+        p.setFrontArm(facingDir, (-42.0f - ext * 45.0f) * facingDir, (-115.0f + ext * 105.0f) * facingDir);
+        p.setRearArm(facingDir, (-38.0f - ext * 45.0f) * facingDir, (-115.0f + ext * 105.0f) * facingDir);
+        p.setFrontLeg(facingDir, (-16.0f - ext * 14.0f) * facingDir, 20.0f * facingDir);
+        p.setRearLeg(facingDir, (18.0f + ext * 12.0f) * facingDir, 15.0f * facingDir);
+    }
+    return p;
+}
+
+RagdollPose RagdollPose::makeThrow(int facingDir, float progress) {
+    RagdollPose p;
+    if (progress < 0.45f) {
+        // Outstretched reach for opponent's collar
+        float t = progress / 0.45f;
+        p.neck = 4.0f * facingDir;
+        p.spine = (14.0f * t) * facingDir;
+        p.setFrontArm(facingDir, (-20.0f - t * 60.0f) * facingDir, (-80.0f + t * 65.0f) * facingDir);
+        p.setRearArm(facingDir, (-10.0f - t * 65.0f) * facingDir, (-85.0f + t * 70.0f) * facingDir);
+        p.setFrontLeg(facingDir, -12.0f * facingDir, 16.0f * facingDir);
+        p.setRearLeg(facingDir, 12.0f * facingDir, 14.0f * facingDir);
+    } else {
+        // Violent downward judo slam!
+        float t = (progress - 0.45f) / 0.55f;
+        p.neck = 8.0f * facingDir;
+        p.spine = (14.0f + t * 24.0f) * facingDir;
+        p.setFrontArm(facingDir, (35.0f * t) * facingDir, (-20.0f - t * 40.0f) * facingDir);
+        p.setRearArm(facingDir, (40.0f * t) * facingDir, (-20.0f - t * 40.0f) * facingDir);
+        p.setFrontLeg(facingDir, -20.0f * facingDir, 28.0f * facingDir);
+        p.setRearLeg(facingDir, 18.0f * facingDir, 22.0f * facingDir);
+    }
+    return p;
+}
+
+RagdollPose RagdollPose::makeRageArt(int facingDir, float progress) {
+    RagdollPose p;
+    if (progress < 0.30f) {
+        // Cinematic charging stance: fists drawn back, eyes glowing
+        float t = progress / 0.30f;
+        p.neck = -8.0f * facingDir;
+        p.spine = (-16.0f * t) * facingDir;
+        p.setFrontArm(facingDir, (25.0f * t) * facingDir, -95.0f * facingDir);
+        p.setRearArm(facingDir, (30.0f * t) * facingDir, -100.0f * facingDir);
+        p.setFrontLeg(facingDir, -20.0f * facingDir * t, 30.0f * facingDir * t);
+        p.setRearLeg(facingDir, 20.0f * facingDir * t, 25.0f * facingDir * t);
+    } else if (progress < 0.70f) {
+        // Supersonic armor thrust punch
+        p.neck = 4.0f * facingDir;
+        p.spine = 22.0f * facingDir;
+        p.setFrontArm(facingDir, 25.0f * facingDir, -85.0f * facingDir);
+        p.setRearArm(facingDir, -100.0f * facingDir, 0.0f);
+        p.setFrontLeg(facingDir, -24.0f * facingDir, 22.0f * facingDir);
+        p.setRearLeg(facingDir, 28.0f * facingDir, 16.0f * facingDir);
+    } else {
+        p = makeIdleGuard(facingDir, 0.0f);
+    }
     return p;
 }
 
@@ -335,8 +448,8 @@ void ActiveRagdollController::setMoveInput(float moveX, float moveY) {
                 m_actionState = FighterActionState::Crouching;
             }
         } else if (m_moveInputX * m_facingDir < -0.2f) {
-            // Holding Back away from opponent = High Guard / Block!
-            m_actionState = FighterActionState::HighGuarding;
+            // Holding Back away from opponent = Walk Backward & High Guard (Tekken style!)
+            m_actionState = FighterActionState::MovingBackward;
         } else if (m_moveInputX * m_facingDir > 0.2f) {
             m_actionState = FighterActionState::MovingForward;
         } else {
@@ -359,9 +472,14 @@ void ActiveRagdollController::triggerDash(int dir) {
     m_dashTimer = 0.20f;
 
     b2BodyId hips = m_skeleton->getHips();
+    b2BodyId torso = m_skeleton->getTorso();
     if (b2Body_IsValid(hips)) {
         float speed = (m_dashDir == m_facingDir) ? 10.0f : -7.5f;
-        b2Body_ApplyLinearImpulseToCenter(hips, b2Vec2{ speed * m_facingDir, -1.5f }, true);
+        b2Vec2 imp = { speed * m_facingDir * 0.5f, 0.0f }; // Purely horizontal impulse
+        b2Body_ApplyLinearImpulseToCenter(hips, imp, true);
+        if (b2Body_IsValid(torso)) {
+            b2Body_ApplyLinearImpulseToCenter(torso, imp, true);
+        }
     }
 }
 
@@ -479,6 +597,67 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.strikingLimb = LimbType::RightShin;
         break;
 
+    case MoveId::OneTwoString:
+        def.name = "1, 2 String";
+        def.height = AttackHeight::High;
+        def.startup = 0.07f;
+        def.active = 0.09f;
+        def.recovery = 0.11f;
+        def.damage = 17.0f;
+        def.launchImpulse = { m_facingDir * 9.0f, -3.0f };
+        def.strikingLimb = (m_facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
+        break;
+
+    case MoveId::MidKick:
+        def.name = "Mid Kick";
+        def.height = AttackHeight::Mid;
+        def.startup = 0.09f;
+        def.active = 0.06f;
+        def.recovery = 0.11f;
+        def.damage = 14.0f;
+        def.launchImpulse = { m_facingDir * 7.5f, -3.5f };
+        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
+        break;
+
+    case MoveId::PowerCrush:
+        def.name = "Power Crush";
+        def.height = AttackHeight::Mid;
+        def.startup = 0.15f;
+        def.active = 0.08f;
+        def.recovery = 0.17f;
+        def.damage = 24.0f;
+        def.isPowerCrush = true;
+        def.launchImpulse = { m_facingDir * 18.0f, -5.5f };
+        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        break;
+
+    case MoveId::Throw:
+        def.name = "Command Throw";
+        def.height = AttackHeight::High;
+        def.startup = 0.12f;
+        def.active = 0.08f;
+        def.recovery = 0.16f;
+        def.damage = 26.0f;
+        def.isThrow = true;
+        def.isTrip = true;
+        def.launchImpulse = { m_facingDir * 12.0f, -4.5f };
+        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        break;
+
+    case MoveId::RageArt:
+        def.name = "Rage Art";
+        def.height = AttackHeight::Mid;
+        def.startup = 0.18f;
+        def.active = 0.12f;
+        def.recovery = 0.22f;
+        def.damage = 48.0f;
+        def.isRageArt = true;
+        def.isPowerCrush = true;
+        def.isLauncher = true;
+        def.launchImpulse = { m_facingDir * 24.0f, -14.0f };
+        def.strikingLimb = (m_facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
+        break;
+
     default:
         return;
     }
@@ -493,6 +672,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
     if (b2Body_IsValid(torso)) {
         float fwdPush = (move == MoveId::ElectricWindGodFist) ? 6.0f
                       : (move == MoveId::FlyingDropkick) ? 12.0f
+                      : (move == MoveId::PowerCrush) ? 7.0f
+                      : (move == MoveId::RageArt) ? 10.0f
                       : (move == MoveId::Hopkick) ? 4.0f
                       : 2.5f;
         float upPush = (move == MoveId::Hopkick) ? -6.5f
@@ -502,12 +683,49 @@ void ActiveRagdollController::triggerMove(MoveId move) {
     }
 }
 
-HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip) {
+HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip, bool isThrow) {
     if (isInvincible()) return HitResult::Miss;
 
-    // Check Block logic
-    if (m_actionState == FighterActionState::HighGuarding) {
-        // High Guard blocks High and Mid attacks!
+    // 1. Ducking under High Attacks or Throws
+    if (m_actionState == FighterActionState::LowGuarding || m_actionState == FighterActionState::Crouching) {
+        if (height == AttackHeight::High || isThrow) {
+            // Ducked completely under high strikes and high throws!
+            return HitResult::Miss;
+        }
+    }
+
+    // 2. Command Throw Resolution (Unblockable vs standing guard, broken if defender attacks during startup)
+    if (isThrow) {
+        if (isAttackStartup()) {
+            return HitResult::ThrowBroken;
+        }
+        m_actionState = FighterActionState::KnockedDown;
+        m_knockdownTimer = 0.0f;
+        b2BodyId hips = m_skeleton->getHips();
+        if (b2Body_IsValid(hips)) {
+            b2Body_ApplyLinearImpulseToCenter(hips, impulse, true);
+        }
+        return HitResult::ThrowGrabbed;
+    }
+
+    // 3. Power Crush Armor (Absorbs High and Mid attacks without interruption!)
+    if (m_actionState == FighterActionState::Attacking && m_currentMove.isPowerCrush) {
+        if (height == AttackHeight::High || height == AttackHeight::Mid) {
+            // Absorb hit through armor! Slight pushback, but no hitstun or launch!
+            b2BodyId torso = m_skeleton->getTorso();
+            if (b2Body_IsValid(torso)) {
+                b2Body_ApplyLinearImpulseToCenter(torso, b2Vec2{ impulse.x * 0.25f, 0.0f }, true);
+            }
+            return HitResult::PowerCrushAbsorb;
+        }
+        // If it's a Low attack, Power Crush gets interrupted/crushed!
+    }
+
+    // 4. Guard / Blocking logic (Authentic Tekken: Active Guard, Back-Walk Guard & Neutral Guard)
+    if (m_actionState == FighterActionState::HighGuarding ||
+        m_actionState == FighterActionState::MovingBackward ||
+        m_actionState == FighterActionState::Neutral) {
+        // High Guard, Back-Walk & Neutral Guard block High and Mid attacks!
         if (height == AttackHeight::High || height == AttackHeight::Mid) {
             b2BodyId torso = m_skeleton->getTorso();
             if (b2Body_IsValid(torso)) {
@@ -515,8 +733,9 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
             }
             return HitResult::Blocked;
         }
+        // Low attacks pierce High/Neutral Guard!
     } else if (m_actionState == FighterActionState::LowGuarding) {
-        // Low Guard blocks Low attacks, and ducks under High attacks!
+        // Low Guard blocks Low attacks
         if (height == AttackHeight::Low) {
             b2BodyId torso = m_skeleton->getTorso();
             if (b2Body_IsValid(torso)) {
@@ -524,13 +743,10 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
             }
             return HitResult::Blocked;
         }
-        if (height == AttackHeight::High) {
-            // Evaded / ducked under high attack
-            return HitResult::Miss;
-        }
+        // Mid attacks crush Low Guard!
     }
 
-    // Was it a counter-hit? (Attacking during startup)
+    // 5. Was it a counter-hit? (Attacking during startup)
     bool isCounter = isAttackStartup();
 
     b2BodyId hips = m_skeleton->getHips();
@@ -600,6 +816,7 @@ bool ActiveRagdollController::isAttackStartup() const {
 
 bool ActiveRagdollController::isGuarding() const {
     return (m_actionState == FighterActionState::HighGuarding ||
+            m_actionState == FighterActionState::MovingBackward ||
             m_actionState == FighterActionState::LowGuarding);
 }
 
@@ -771,6 +988,21 @@ void ActiveRagdollController::evaluateTargetPose() {
         case MoveId::FlyingDropkick:
             m_targetPose = RagdollPose::makeDropkick(m_facingDir, p);
             break;
+        case MoveId::OneTwoString:
+            m_targetPose = RagdollPose::makeOneTwo(m_facingDir, p);
+            break;
+        case MoveId::MidKick:
+            m_targetPose = RagdollPose::makeMidKick(m_facingDir, p);
+            break;
+        case MoveId::PowerCrush:
+            m_targetPose = RagdollPose::makePowerCrush(m_facingDir, p);
+            break;
+        case MoveId::Throw:
+            m_targetPose = RagdollPose::makeThrow(m_facingDir, p);
+            break;
+        case MoveId::RageArt:
+            m_targetPose = RagdollPose::makeRageArt(m_facingDir, p);
+            break;
         default:
             m_targetPose = RagdollPose::makeIdleGuard(m_facingDir, m_breathePhase);
             break;
@@ -854,46 +1086,59 @@ void ActiveRagdollController::applyLocomotionAndSuspension(float dt) {
     float currentY = PhysicsUnits::toPixels(b2Body_GetPosition(hips)).y;
     float targetHeight = (m_actionState == FighterActionState::Crouching ||
                           m_actionState == FighterActionState::LowGuarding)
-                         ? (m_standingHeight * 0.65f)
+                         ? (m_standingHeight * 0.72f)
                          : m_standingHeight;
 
     float targetY = m_floorY - targetHeight;
     float distToGround = m_floorY - currentY;
 
-    if (distToGround > 0.0f && distToGround < (m_standingHeight * 1.5f)) {
-        float dy = targetY - currentY; // In pixels
+    if (distToGround > 5.0f && distToGround < (m_standingHeight * 1.35f)) {
+        float dy = targetY - currentY; // In pixels (negative when below targetY)
         float dyMeters = dy / PhysicsUnits::PPM;
         float vy = b2Body_GetLinearVelocity(hips).y;
 
-        float kSuspension = 320.0f;
-        float kDamping = 35.0f;
-        float forceY = dyMeters * kSuspension - vy * kDamping;
+        // Balanced gravity counter for core pelvis/torso weight (~12 N)
+        const float gravityFeedforward = -14.0f;
+        float kSuspension = 150.0f;
+        float kDamping = 16.0f;
+        float forceY = dyMeters * kSuspension - vy * kDamping + gravityFeedforward;
 
-        b2Body_ApplyForceToCenter(hips, b2Vec2{ 0.0f, forceY }, true);
+        // Negative is UP, positive is DOWN:
+        // Capped upward force (-85 N) prevents floating/launching while maintaining posture
+        forceY = std::clamp(forceY, -85.0f, 40.0f);
+
+        b2Body_ApplyForceToCenter(hips, b2Vec2{ 0.0f, forceY * 0.65f }, true);
         if (b2Body_IsValid(torso)) {
             b2Body_ApplyForceToCenter(torso, b2Vec2{ 0.0f, forceY * 0.35f }, true);
         }
     }
 
-    // 2. Horizontal Locomotion Drive
+    // 2. Horizontal Locomotion Drive & Snappy Braking
     float targetVx = 0.0f;
     if (m_actionState == FighterActionState::MovingForward) {
-        targetVx = m_facingDir * 4.8f;
+        targetVx = m_facingDir * 4.6f;
     } else if (m_actionState == FighterActionState::MovingBackward) {
         targetVx = -m_facingDir * 3.4f;
     } else if (m_actionState == FighterActionState::Dashing) {
         targetVx = m_dashDir * 8.5f;
     }
 
-    if (std::abs(targetVx) > 0.1f) {
-        float currentVx = b2Body_GetLinearVelocity(hips).x;
-        float forceX = (targetVx - currentVx) * 65.0f;
-        b2Body_ApplyForceToCenter(hips, b2Vec2{ forceX, 0.0f }, true);
+    float currentVx = b2Body_GetLinearVelocity(hips).x;
+    bool isMoving = (std::abs(targetVx) > 0.1f);
+    // When moving: drive towards targetVx. When neutral: actively brake currentVx to 0 to eliminate ice-skating!
+    float kDrive = isMoving ? 75.0f : 110.0f;
+    float forceX = (targetVx - currentVx) * kDrive;
+    forceX = std::clamp(forceX, -220.0f, 220.0f);
+
+    b2Body_ApplyForceToCenter(hips, b2Vec2{ forceX * 0.55f, 0.0f }, true);
+    if (b2Body_IsValid(torso)) {
+        b2Body_ApplyForceToCenter(torso, b2Vec2{ forceX * 0.45f, 0.0f }, true);
     }
 }
 
 void ActiveRagdollController::applyUprightStabilizer() {
     b2BodyId torso = m_skeleton->getTorso();
+    b2BodyId hips = m_skeleton->getHips();
     if (!b2Body_IsValid(torso)) return;
 
     if (m_actionState == FighterActionState::LaunchedJuggle ||
@@ -901,25 +1146,24 @@ void ActiveRagdollController::applyUprightStabilizer() {
         return;
     }
 
-    b2Rot rot = b2Body_GetRotation(torso);
-    float currentAngle = b2Rot_GetAngle(rot);
-    float angularVel = b2Body_GetAngularVelocity(torso);
-
     float desiredAngle = 0.0f;
-    if (m_actionState == FighterActionState::MovingForward) desiredAngle = m_facingDir * 0.08f;
-    if (m_actionState == FighterActionState::MovingBackward) desiredAngle = -m_facingDir * 0.05f;
 
-    float Kp = 32.0f;
-    float Kd = 4.2f;
-    float uprightTorque = -Kp * (currentAngle - desiredAngle) - Kd * angularVel;
-    b2Body_ApplyTorque(torso, uprightTorque, true);
+    // 1. Torso Upright PD Stabilizer
+    b2Rot rotTorso = b2Body_GetRotation(torso);
+    float angleTorso = b2Rot_GetAngle(rotTorso);
+    float wTorso = b2Body_GetAngularVelocity(torso);
+    float torqueTorso = -140.0f * (angleTorso - desiredAngle) - 12.0f * wTorso;
+    torqueTorso = std::clamp(torqueTorso, -75.0f, 75.0f);
+    b2Body_ApplyTorque(torso, torqueTorso, true);
 
-    b2BodyId hips = m_skeleton->getHips();
+    // 2. Pelvis / Hips Upright PD Stabilizer (Crucial to prevent hips pitching forward)
     if (b2Body_IsValid(hips)) {
-        b2Rot hipsRot = b2Body_GetRotation(hips);
-        float hipsAngle = b2Rot_GetAngle(hipsRot);
-        float hipsAngVel = b2Body_GetAngularVelocity(hips);
-        b2Body_ApplyTorque(hips, -Kp * 0.6f * hipsAngle - Kd * 0.5f * hipsAngVel, true);
+        b2Rot rotHips = b2Body_GetRotation(hips);
+        float angleHips = b2Rot_GetAngle(rotHips);
+        float wHips = b2Body_GetAngularVelocity(hips);
+        float torqueHips = -120.0f * (angleHips - desiredAngle) - 10.0f * wHips;
+        torqueHips = std::clamp(torqueHips, -60.0f, 60.0f);
+        b2Body_ApplyTorque(hips, torqueHips, true);
     }
 }
 

@@ -76,15 +76,33 @@ sf::Vector2f RagdollSkeleton::getRightFootPixels() const {
 }
 
 void RagdollSkeleton::assembleLimbs(const sf::Vector2f& spawnPosPixels) {
-    b2Filter filter = b2DefaultFilter();
-    // Negative group index ensures limbs belonging to this fighter never self-collide
-    filter.groupIndex = -m_fighterId;
+    // Category bits for clean fighting-game collision
+    constexpr uint64_t CAT_ENV          = 1ULL << 0; // Environment (default static/dynamic boxes)
+    constexpr uint64_t CAT_FIGHTER_CORE = 1ULL << 1; // Core pushbox (Torso & Hips)
+    constexpr uint64_t CAT_FIGHTER_LIMB = 1ULL << 2; // Limbs (Head, Arms, Legs)
 
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.filter = filter;
-    shapeDef.density = 1.0f;
-    shapeDef.material.friction = 0.8f;
-    shapeDef.material.restitution = 0.05f;
+    // Negative group index ensures limbs belonging to this fighter never self-collide
+    b2Filter coreFilter = b2DefaultFilter();
+    coreFilter.groupIndex = -m_fighterId;
+    coreFilter.categoryBits = CAT_FIGHTER_CORE;
+    coreFilter.maskBits = CAT_ENV | CAT_FIGHTER_CORE; // Collides with arena and opponent core pushbox
+
+    b2Filter limbFilter = b2DefaultFilter();
+    limbFilter.groupIndex = -m_fighterId;
+    limbFilter.categoryBits = CAT_FIGHTER_LIMB;
+    limbFilter.maskBits = CAT_ENV; // Collides with arena only (eliminates limb snagging/tangling)
+
+    b2ShapeDef coreShapeDef = b2DefaultShapeDef();
+    coreShapeDef.filter = coreFilter;
+    coreShapeDef.density = 2.0f;
+    coreShapeDef.material.friction = 0.2f;
+    coreShapeDef.material.restitution = 0.05f;
+
+    b2ShapeDef limbShapeDef = b2DefaultShapeDef();
+    limbShapeDef.filter = limbFilter;
+    limbShapeDef.density = 1.0f;
+    limbShapeDef.material.friction = 0.15f; // Low friction eliminates ground drag tripping
+    limbShapeDef.material.restitution = 0.05f;
 
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_dynamicBody;
@@ -94,12 +112,12 @@ void RagdollSkeleton::assembleLimbs(const sf::Vector2f& spawnPosPixels) {
     float cx = spawnPosPixels.x;
     float cy = spawnPosPixels.y;
 
-    // 1. Torso (Center of skeleton)
+    // 1. Torso (Center of skeleton & Core Pushbox)
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx, cy));
     b2BodyId torso = b2CreateBody(m_worldId, &bodyDef);
     b2Polygon torsoShape = b2MakeRoundedBox(PhysicsUnits::toMeters(TORSO_WIDTH * 0.5f), PhysicsUnits::toMeters(TORSO_HEIGHT * 0.5f), PhysicsUnits::toMeters(2.0f));
-    shapeDef.density = 2.5f; // Torso has mass
-    b2CreatePolygonShape(torso, &shapeDef, &torsoShape);
+    coreShapeDef.density = 2.5f;
+    b2CreatePolygonShape(torso, &coreShapeDef, &torsoShape);
     m_bodies[static_cast<size_t>(LimbType::Torso)] = torso;
 
     // 2. Head
@@ -109,78 +127,78 @@ void RagdollSkeleton::assembleLimbs(const sf::Vector2f& spawnPosPixels) {
     b2Circle headShape;
     headShape.center = b2Vec2{ 0.0f, 0.0f };
     headShape.radius = PhysicsUnits::toMeters(HEAD_RADIUS);
-    shapeDef.density = 1.2f;
-    b2CreateCircleShape(head, &shapeDef, &headShape);
+    limbShapeDef.density = 1.2f;
+    b2CreateCircleShape(head, &limbShapeDef, &headShape);
     m_bodies[static_cast<size_t>(LimbType::Head)] = head;
 
-    // 3. Hips / Pelvis
+    // 3. Hips / Pelvis (Core Pushbox)
     float hipsY = cy + (TORSO_HEIGHT * 0.5f) + (HIPS_HEIGHT * 0.5f);
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx, hipsY));
     b2BodyId hips = b2CreateBody(m_worldId, &bodyDef);
     b2Polygon hipsShape = b2MakeRoundedBox(PhysicsUnits::toMeters(HIPS_WIDTH * 0.5f), PhysicsUnits::toMeters(HIPS_HEIGHT * 0.5f), PhysicsUnits::toMeters(2.0f));
-    shapeDef.density = 2.0f;
-    b2CreatePolygonShape(hips, &shapeDef, &hipsShape);
+    coreShapeDef.density = 2.0f;
+    b2CreatePolygonShape(hips, &coreShapeDef, &hipsShape);
     m_bodies[static_cast<size_t>(LimbType::Hips)] = hips;
 
     // 4. Arms
     float armY = cy - (TORSO_HEIGHT * 0.5f) + 4.0f;
     b2Polygon armShape = b2MakeRoundedBox(PhysicsUnits::toMeters(UPPER_ARM_WIDTH * 0.5f), PhysicsUnits::toMeters(UPPER_ARM_LEN * 0.5f), PhysicsUnits::toMeters(1.5f));
     b2Polygon forearmShape = b2MakeRoundedBox(PhysicsUnits::toMeters(FOREARM_WIDTH * 0.5f), PhysicsUnits::toMeters(FOREARM_LEN * 0.5f), PhysicsUnits::toMeters(1.5f));
-    shapeDef.density = 0.8f;
+    limbShapeDef.density = 0.35f; // Lightweight stick arms
 
     // Left Upper Arm
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx - 8.0f, armY + UPPER_ARM_LEN * 0.5f));
     b2BodyId leftUpperArm = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(leftUpperArm, &shapeDef, &armShape);
+    b2CreatePolygonShape(leftUpperArm, &limbShapeDef, &armShape);
     m_bodies[static_cast<size_t>(LimbType::LeftUpperArm)] = leftUpperArm;
 
     // Left Forearm
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx - 8.0f, armY + UPPER_ARM_LEN + FOREARM_LEN * 0.5f));
     b2BodyId leftForearm = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(leftForearm, &shapeDef, &forearmShape);
+    b2CreatePolygonShape(leftForearm, &limbShapeDef, &forearmShape);
     m_bodies[static_cast<size_t>(LimbType::LeftForearm)] = leftForearm;
 
     // Right Upper Arm
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx + 8.0f, armY + UPPER_ARM_LEN * 0.5f));
     b2BodyId rightUpperArm = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(rightUpperArm, &shapeDef, &armShape);
+    b2CreatePolygonShape(rightUpperArm, &limbShapeDef, &armShape);
     m_bodies[static_cast<size_t>(LimbType::RightUpperArm)] = rightUpperArm;
 
     // Right Forearm
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx + 8.0f, armY + UPPER_ARM_LEN + FOREARM_LEN * 0.5f));
     b2BodyId rightForearm = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(rightForearm, &shapeDef, &forearmShape);
+    b2CreatePolygonShape(rightForearm, &limbShapeDef, &forearmShape);
     m_bodies[static_cast<size_t>(LimbType::RightForearm)] = rightForearm;
 
     // 5. Legs
     float legY = hipsY + (HIPS_HEIGHT * 0.5f);
     b2Polygon thighShape = b2MakeRoundedBox(PhysicsUnits::toMeters(THIGH_WIDTH * 0.5f), PhysicsUnits::toMeters(THIGH_LEN * 0.5f), PhysicsUnits::toMeters(2.0f));
     b2Polygon shinShape = b2MakeRoundedBox(PhysicsUnits::toMeters(SHIN_WIDTH * 0.5f), PhysicsUnits::toMeters(SHIN_LEN * 0.5f), PhysicsUnits::toMeters(2.0f));
-    shapeDef.density = 1.2f;
-    shapeDef.material.friction = 0.9f; // High grip for feet
+    limbShapeDef.density = 1.1f;
+    limbShapeDef.material.friction = 0.15f; // Low friction foot contact eliminates tripwire effect
 
     // Left Thigh
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx - 5.0f, legY + THIGH_LEN * 0.5f));
     b2BodyId leftThigh = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(leftThigh, &shapeDef, &thighShape);
+    b2CreatePolygonShape(leftThigh, &limbShapeDef, &thighShape);
     m_bodies[static_cast<size_t>(LimbType::LeftThigh)] = leftThigh;
 
     // Left Shin
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx - 5.0f, legY + THIGH_LEN + SHIN_LEN * 0.5f));
     b2BodyId leftShin = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(leftShin, &shapeDef, &shinShape);
+    b2CreatePolygonShape(leftShin, &limbShapeDef, &shinShape);
     m_bodies[static_cast<size_t>(LimbType::LeftShin)] = leftShin;
 
     // Right Thigh
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx + 5.0f, legY + THIGH_LEN * 0.5f));
     b2BodyId rightThigh = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(rightThigh, &shapeDef, &thighShape);
+    b2CreatePolygonShape(rightThigh, &limbShapeDef, &thighShape);
     m_bodies[static_cast<size_t>(LimbType::RightThigh)] = rightThigh;
 
     // Right Shin
     bodyDef.position = PhysicsUnits::toMeters(sf::Vector2f(cx + 5.0f, legY + THIGH_LEN + SHIN_LEN * 0.5f));
     b2BodyId rightShin = b2CreateBody(m_worldId, &bodyDef);
-    b2CreatePolygonShape(rightShin, &shapeDef, &shinShape);
+    b2CreatePolygonShape(rightShin, &limbShapeDef, &shinShape);
     m_bodies[static_cast<size_t>(LimbType::RightShin)] = rightShin;
 
     // -----------------------------------------------------------------

@@ -46,6 +46,7 @@ public:
         m_comboHits = 0;
         m_comboDamage = 0.0f;
         m_comboTimer = 0.0f;
+        m_rageArtUsed = false;
     }
 
     void resetHealth() {
@@ -55,6 +56,7 @@ public:
         m_comboHits = 0;
         m_comboDamage = 0.0f;
         m_comboTimer = 0.0f;
+        m_rageArtUsed = false;
         m_controller->setLimp(false);
     }
 
@@ -137,11 +139,16 @@ public:
     int getComboHits() const { return m_comboHits; }
     float getComboDamage() const { return m_comboDamage; }
 
+    bool isInRage() const { return m_health <= 28.0f && m_health > 0.0f; }
+    bool hasUsedRageArt() const { return m_rageArtUsed; }
+    void setRageArtUsed(bool used) { m_rageArtUsed = used; }
+
 private:
     b2WorldId m_worldId;
     int m_fighterId{ 1 };
     std::string m_name{ "FIGHTER" };
     sf::Color m_accentColor{ sf::Color::Red };
+    bool m_rageArtUsed{ false };
 
     std::unique_ptr<RagdollEngine::RagdollSkeleton> m_skeleton;
     std::unique_ptr<RagdollEngine::ActiveRagdollController> m_controller;

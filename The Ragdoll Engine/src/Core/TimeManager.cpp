@@ -35,6 +35,7 @@ void TimeManager::update() {
     m_currentTimeScale += (m_targetTimeScale - m_currentTimeScale) * std::min(1.0f, lerpSpeed * m_realDt);
 
     m_gameDt = m_realDt * m_currentTimeScale;
+    m_totalGameTime += m_gameDt;
     m_accumulator += m_gameDt;
 }
 

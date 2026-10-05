@@ -186,18 +186,52 @@ private:
             return (std::sqrt(dx * dx + dy * dy) < reachRadius);
         };
 
-        bool hitConnected = checkBodyContact(head, 24.0f) ||
-                            checkBodyContact(torso, 26.0f) ||
-                            checkBodyContact(hips, 24.0f);
+        float reachRadius = move.isThrow ? 34.0f : 26.0f;
+        bool hitConnected = checkBodyContact(head, reachRadius) ||
+                            checkBodyContact(torso, reachRadius) ||
+                            checkBodyContact(hips, reachRadius);
 
         if (hitConnected) {
             atCtrl->setHitRegistered(true);
 
-            // Execute hit against defender's stance/guard
-            b2Vec2 impulse = { move.launchImpulse.x * atCtrl->getFacingDirection(), move.launchImpulse.y };
-            RagdollEngine::HitResult hitRes = defCtrl->takeHit(move.damage, move.height, impulse, move.isLauncher, move.isTrip);
+            // 1. Calculate Base Damage with Tekken 7 Rage multiplier (+15% when HP <= 28%)
+            float baseDamage = move.damage;
+            if (attacker.isInRage()) {
+                baseDamage *= 1.15f;
+            }
 
-            if (hitRes == RagdollEngine::HitResult::Blocked) {
+            b2Vec2 impulse = { move.launchImpulse.x, move.launchImpulse.y };
+            RagdollEngine::HitResult hitRes = defCtrl->takeHit(baseDamage, move.height, impulse, move.isLauncher, move.isTrip, move.isThrow);
+
+            if (hitRes == RagdollEngine::HitResult::ThrowBroken) {
+                // Command Throw broken by defender!
+                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "THROW BREAK!", sf::Color(80, 220, 255), 1.5f);
+                juiceFX.spawnBlockEffect(strikeTip);
+                camera.addTrauma(0.35f);
+                timeManager.triggerHitstop(0.10f);
+
+                // Push fighters apart
+                b2BodyId atTorso = attacker.getSkeleton()->getTorso();
+                b2BodyId defTorso = defender.getSkeleton()->getTorso();
+                if (b2Body_IsValid(atTorso)) b2Body_ApplyLinearImpulseToCenter(atTorso, b2Vec2{ -atCtrl->getFacingDirection() * 6.5f, 0.0f }, true);
+                if (b2Body_IsValid(defTorso)) b2Body_ApplyLinearImpulseToCenter(defTorso, b2Vec2{ atCtrl->getFacingDirection() * 6.5f, 0.0f }, true);
+            } else if (hitRes == RagdollEngine::HitResult::ThrowGrabbed) {
+                // Command Throw connected!
+                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -45.0f), "THROW!", sf::Color(255, 215, 0), 1.6f);
+                defender.takeDamage(baseDamage);
+                attacker.addComboHit(baseDamage);
+                camera.addTrauma(0.75f);
+                timeManager.triggerHitstop(0.12f);
+                juiceFX.spawnImpact(strikeTip, sf::Vector2f(0.0f, 1.0f), sf::Color(255, 215, 0), true);
+            } else if (hitRes == RagdollEngine::HitResult::PowerCrushAbsorb) {
+                // Power Crush Armor absorbed the hit! (50% white damage, no hitstun)
+                float absorbedDmg = baseDamage * 0.5f;
+                defender.takeDamage(absorbedDmg);
+                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "POWER CRUSH!", sf::Color(255, 120, 30), 1.4f);
+                juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.2f), sf::Color(255, 120, 30), false);
+                camera.addTrauma(0.35f);
+                timeManager.triggerHitstop(0.06f);
+            } else if (hitRes == RagdollEngine::HitResult::Blocked) {
                 juiceFX.spawnBlockEffect(strikeTip);
                 juiceFX.spawnFloatingText(strikeTip, "BLOCKED!", sf::Color(110, 210, 255), 1.0f);
                 camera.addTrauma(0.18f);
@@ -205,10 +239,38 @@ private:
             } else if (hitRes == RagdollEngine::HitResult::CleanHit || hitRes == RagdollEngine::HitResult::CounterHit) {
                 bool isCounter = (hitRes == RagdollEngine::HitResult::CounterHit);
                 float damageMult = isCounter ? 1.45f : 1.0f;
-                float finalDamage = move.damage * damageMult;
+                float finalDamage = baseDamage * damageMult;
 
                 defender.takeDamage(finalDamage);
                 attacker.addComboHit(finalDamage);
+
+                // Tekken 7 Rage Art Cinematic Sequence!
+                if (move.isRageArt) {
+                    attacker.setRageArtUsed(true);
+                    juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -50.0f), "RAGE ART!", sf::Color(255, 30, 30), 2.2f);
+                    juiceFX.triggerScreenFlash(0.20f, sf::Color(255, 40, 40, 180));
+                    camera.triggerCinematicZoom(0.50f, 1.8f, 0.0f);
+                    timeManager.triggerSlowMo(0.06f, 1.6f);
+                    camera.addTrauma(0.95f);
+                }
+
+                // Tekken 7 Wall Splat System:
+                sf::Vector2f defPos = defender.getSkeleton()->getPositionPixels();
+                if ((defPos.x < 190.0f || defPos.x > 1410.0f) &&
+                    (std::abs(move.launchImpulse.x) > 7.0f || isCounter || move.isLauncher || move.isPowerCrush)) {
+                    juiceFX.spawnFloatingText(defPos + sf::Vector2f(0.0f, -60.0f), "WALL SPLAT!", sf::Color(255, 160, 20), 1.6f);
+                    defender.takeDamage(8.0f); // Bonus wall splat damage
+                    camera.addTrauma(0.65f);
+                    timeManager.triggerHitstop(0.14f);
+                    juiceFX.spawnImpact(defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), true);
+
+                    // Wall stick: stop horizontal velocity momentarily for wall combo follow-up
+                    b2BodyId defHips = defender.getSkeleton()->getHips();
+                    if (b2Body_IsValid(defHips)) {
+                        b2Vec2 vel = b2Body_GetLinearVelocity(defHips);
+                        b2Body_SetLinearVelocity(defHips, b2Vec2{ 0.0f, std::min(vel.y, 1.0f) });
+                    }
+                }
 
                 // Check Juggle Pop-Up
                 if (defCtrl->getActionState() == RagdollEngine::FighterActionState::LaunchedJuggle) {
@@ -217,13 +279,13 @@ private:
                 }
 
                 // Counter-Hit Text & Slow-Mo
-                if (isCounter) {
+                if (isCounter && !move.isRageArt) {
                     juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "COUNTER HIT!", sf::Color(255, 60, 60), 1.4f);
                     timeManager.triggerHitstop(0.13f);
                     timeManager.triggerSlowMo(0.12f, 0.70f);
                     camera.addTrauma(0.70f);
                     juiceFX.triggerScreenFlash(0.10f, sf::Color(255, 255, 255, 140));
-                } else {
+                } else if (!move.isRageArt) {
                     timeManager.triggerHitstop(move.isLauncher ? 0.10f : 0.07f);
                     if (move.isLauncher) {
                         timeManager.triggerSlowMo(0.16f, 0.75f);
@@ -233,9 +295,10 @@ private:
 
                 // Spiky Starburst & sparks
                 sf::Color sparkColor = move.isElectric ? sf::Color(120, 220, 255)
+                                     : move.isRageArt ? sf::Color(255, 40, 40)
                                      : isCounter ? sf::Color(255, 70, 70)
                                      : sf::Color(255, 230, 80);
-                juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.4f), sparkColor, move.isLauncher || isCounter);
+                juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.4f), sparkColor, move.isLauncher || isCounter || move.isRageArt);
             }
         }
     }

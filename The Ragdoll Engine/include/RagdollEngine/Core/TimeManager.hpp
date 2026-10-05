@@ -11,10 +11,12 @@ public:
     // Call at the start of each frame
     void update();
 
-    // Get time deltas
+    // Get time deltas & elapsed time
     float getRealDeltaTime() const { return m_realDt; }
     float getGameDeltaTime() const { return m_gameDt; }
     float getFixedPhysicsStep() const { return m_fixedStep; }
+    float getGameTime() const { return m_totalGameTime; }
+    float getTotalGameTime() const { return m_totalGameTime; }
 
     // Hitstop / Freeze-frame (combat impact juice)
     void triggerHitstop(float durationSeconds);
@@ -34,6 +36,7 @@ private:
     float m_gameDt{ 0.016f };
     float m_fixedStep{ 1.0f / 60.0f };
     float m_accumulator{ 0.0f };
+    float m_totalGameTime{ 0.0f };
 
     // Hitstop
     float m_hitstopTimer{ 0.0f };

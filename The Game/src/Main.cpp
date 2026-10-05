@@ -71,27 +71,44 @@ int main() {
     StickminGame::CombatManager combatManager(&p1, &p2);
     combatManager.startRound(1);
 
+    float p1Last1Time = -10.0f;
+    float p2Last1Time = -10.0f;
+
+    bool p1DDown = false;
+    bool p1ADown = false;
+    float p1LastDReleaseTime = -10.0f;
+    float p1LastAReleaseTime = -10.0f;
+
+    bool p2RightDown = false;
+    bool p2LeftDown = false;
+    float p2LastRightReleaseTime = -10.0f;
+    float p2LastLeftReleaseTime = -10.0f;
+
     std::cout << "====================================================\n";
-    std::cout << " Stickmin Arena - Tekken Edition Active Ragdolls!\n";
+    std::cout << " Stickmin Arena - Tekken 7 Active Ragdolls!\n";
     std::cout << " Roster: Henry, Ellie, Charles Calvin, Reginald, RHM!\n";
     std::cout << " [F1]: Cycle Player 1 Character\n";
     std::cout << " [F2]: Cycle Player 2 Character\n";
-    std::cout << " Player 1:\n";
+    std::cout << " Player 1 (Tekken 7 4-Button Controls):\n";
     std::cout << "   A / D       : Move / Guard (Hold Back to Block!)\n";
     std::cout << "   S           : Crouch (Hold Down+Back for Crouch Block!)\n";
-    std::cout << "   W           : Jump\n";
-    std::cout << "   J           : 1 (LP - Flash Jab)\n";
-    std::cout << "   K           : 2 (RP - Straight Cross / Fwd+K: EWGF!)\n";
-    std::cout << "   U           : 3 (LK - Low Sweep / Down+U: Hell Sweep!)\n";
-    std::cout << "   I           : 4 (RK - Axe Roundhouse / Up+I: Hopkick!)\n";
-    std::cout << "   O           : Flying Dropkick\n";
-    std::cout << " Player 2:\n";
+    std::cout << "   W / Space   : Jump\n";
+    std::cout << "   J           : 1 (Left Punch - Flash Jab)\n";
+    std::cout << "   K           : 2 (Right Punch - Straight Cross / Fwd+2: EWGF / 1,2: One-Two!)\n";
+    std::cout << "   U           : 3 (Left Kick - Mid Kick / Down+3: Hell Sweep!)\n";
+    std::cout << "   I           : 4 (Right Kick - Axe Roundhouse / Up+4: Hopkick!)\n";
+    std::cout << "   O           : 1+2 (Power Crush Armor / Rage Art when in Rage!)\n";
+    std::cout << "   L           : 1+3 (Command Throw - Unblockable Grab! Break with 1 or 2)\n";
+    std::cout << "   P           : 3+4 (Flying Dropkick)\n";
+    std::cout << " Player 2 (Tekken 7 4-Button Controls):\n";
     std::cout << "   Arrows      : Move / Guard / Crouch / Jump\n";
-    std::cout << "   Num 1 or ,  : 1 (LP - Flash Jab)\n";
-    std::cout << "   Num 2 or .  : 2 (RP - Straight Cross / Fwd+2: EWGF!)\n";
-    std::cout << "   Num 4 or /  : 3 (LK - Low Sweep / Down+4: Hell Sweep!)\n";
-    std::cout << "   Num 5 or ;  : 4 (RK - Axe Roundhouse / Up+5: Hopkick!)\n";
-    std::cout << "   Num 6 or [  : Flying Dropkick\n";
+    std::cout << "   Num 1 or ,  : 1 (Left Punch - Flash Jab)\n";
+    std::cout << "   Num 2 or .  : 2 (Right Punch - Straight Cross / Fwd+2: EWGF / 1,2: One-Two!)\n";
+    std::cout << "   Num 4 or /  : 3 (Left Kick - Mid Kick / Down+3: Hell Sweep!)\n";
+    std::cout << "   Num 5 or ;  : 4 (Right Kick - Axe Roundhouse / Up+4: Hopkick!)\n";
+    std::cout << "   Num 3 or ]  : 1+2 (Power Crush Armor / Rage Art when in Rage!)\n";
+    std::cout << "   Num 6 or '  : 1+3 (Command Throw - Unblockable Grab!)\n";
+    std::cout << "   Num 9 or [  : 3+4 (Flying Dropkick)\n";
     std::cout << " Global:\n";
     std::cout << "   TAB         : Slow-Mo toggle\n";
     std::cout << "   B / Enter   : Rematch / Reset\n";
@@ -168,23 +185,50 @@ int main() {
                     bool p1Down = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S);
                     bool p1Up = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W);
 
-                    // 1: LP (Flash Jab)
+                    // 1: LP (Flash Jab / 1+2 / 1+3)
                     if (keyPressed->code == sf::Keyboard::Key::J) {
-                        p1.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
+                            // 1+2
+                            if (p1.isInRage() && !p1.hasUsedRageArt()) {
+                                p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                            } else {
+                                p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                            }
+                        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::U)) {
+                            // 1+3
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
+                        } else {
+                            p1Last1Time = timeManager.getGameTime();
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
+                        }
                     }
-                    // 2: RP (Cross / EWGF)
+                    // 2: RP (Cross / EWGF / 1,2 String)
                     if (keyPressed->code == sf::Keyboard::Key::K) {
-                        if (p1Fwd) {
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
+                            if (p1.isInRage() && !p1.hasUsedRageArt()) {
+                                p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                            } else {
+                                p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                            }
+                        } else if (p1Fwd) {
                             p1.getController()->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
+                        } else if (timeManager.getGameTime() - p1Last1Time < 0.28f) {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::OneTwoString);
                         } else {
                             p1.getController()->triggerMove(RagdollEngine::MoveId::StraightCross);
                         }
                     }
-                    // 3: LK (Sweep / Hell Sweep)
+                    // 3: LK (Mid Kick / Down+3: Hell Sweep)
                     if (keyPressed->code == sf::Keyboard::Key::U) {
-                        p1.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
+                        } else if (p1Down) {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
+                        } else {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::MidKick);
+                        }
                     }
-                    // 4: RK (Roundhouse / Hopkick)
+                    // 4: RK (Roundhouse / Up+4: Hopkick)
                     if (keyPressed->code == sf::Keyboard::Key::I) {
                         if (p1Up) {
                             p1.getController()->triggerMove(RagdollEngine::MoveId::Hopkick);
@@ -192,10 +236,42 @@ int main() {
                             p1.getController()->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
                         }
                     }
-                    // Dropkick
+                    // O: 1+2 (Power Crush Armor / Rage Art when in Rage!)
                     if (keyPressed->code == sf::Keyboard::Key::O) {
+                        if (p1.isInRage() && !p1.hasUsedRageArt()) {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                        } else {
+                            p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                        }
+                    }
+                    // L: 1+3 (Command Throw - Unblockable Grab!)
+                    if (keyPressed->code == sf::Keyboard::Key::L) {
+                        p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
+                    }
+                    // P: 3+4 (Flying Dropkick)
+                    if (keyPressed->code == sf::Keyboard::Key::P) {
                         p1.getController()->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
                     }
+                    // Dashing: Double-tap forward (f,f) or back (b,b) requiring key release
+                    if (keyPressed->code == sf::Keyboard::Key::D) {
+                        if (!p1DDown) {
+                            p1DDown = true;
+                            float now = timeManager.getGameTime();
+                            if (now - p1LastDReleaseTime < 0.22f) {
+                                p1.getController()->triggerDash(1);
+                            }
+                        }
+                    }
+                    if (keyPressed->code == sf::Keyboard::Key::A) {
+                        if (!p1ADown) {
+                            p1ADown = true;
+                            float now = timeManager.getGameTime();
+                            if (now - p1LastAReleaseTime < 0.22f) {
+                                p1.getController()->triggerDash(-1);
+                            }
+                        }
+                    }
+
                     // Jump
                     if (keyPressed->code == sf::Keyboard::Key::W || keyPressed->code == sf::Keyboard::Key::Space) {
                         p1.getController()->jump();
@@ -212,21 +288,42 @@ int main() {
 
                     // 1: LP
                     if (keyPressed->code == sf::Keyboard::Key::Numpad1 || keyPressed->code == sf::Keyboard::Key::Comma) {
-                        p2.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad2) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Period)) {
+                            if (p2.isInRage() && !p2.hasUsedRageArt()) {
+                                p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                            } else {
+                                p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                            }
+                        } else {
+                            p2Last1Time = timeManager.getGameTime();
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
+                        }
                     }
-                    // 2: RP (Cross / EWGF)
+                    // 2: RP (Cross / EWGF / 1,2 String)
                     if (keyPressed->code == sf::Keyboard::Key::Numpad2 || keyPressed->code == sf::Keyboard::Key::Period) {
-                        if (p2Fwd) {
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad1) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Comma)) {
+                            if (p2.isInRage() && !p2.hasUsedRageArt()) {
+                                p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                            } else {
+                                p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                            }
+                        } else if (p2Fwd) {
                             p2.getController()->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
+                        } else if (timeManager.getGameTime() - p2Last1Time < 0.28f) {
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::OneTwoString);
                         } else {
                             p2.getController()->triggerMove(RagdollEngine::MoveId::StraightCross);
                         }
                     }
-                    // 3: LK
+                    // 3: LK (Mid Kick / Down+3: Hell Sweep)
                     if (keyPressed->code == sf::Keyboard::Key::Numpad4 || keyPressed->code == sf::Keyboard::Key::Slash) {
-                        p2.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
+                        if (p2Down) {
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
+                        } else {
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::MidKick);
+                        }
                     }
-                    // 4: RK (Roundhouse / Hopkick)
+                    // 4: RK (Roundhouse / Up+4: Hopkick)
                     if (keyPressed->code == sf::Keyboard::Key::Numpad5 || keyPressed->code == sf::Keyboard::Key::Semicolon) {
                         if (p2Up) {
                             p2.getController()->triggerMove(RagdollEngine::MoveId::Hopkick);
@@ -234,10 +331,42 @@ int main() {
                             p2.getController()->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
                         }
                     }
-                    // Dropkick
-                    if (keyPressed->code == sf::Keyboard::Key::Numpad6 || keyPressed->code == sf::Keyboard::Key::LBracket) {
+                    // 1+2: Power Crush / Rage Art
+                    if (keyPressed->code == sf::Keyboard::Key::Numpad3 || keyPressed->code == sf::Keyboard::Key::RBracket) {
+                        if (p2.isInRage() && !p2.hasUsedRageArt()) {
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
+                        } else {
+                            p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
+                        }
+                    }
+                    // 1+3: Command Throw
+                    if (keyPressed->code == sf::Keyboard::Key::Numpad6 || keyPressed->code == sf::Keyboard::Key::Apostrophe) {
+                        p2.getController()->triggerMove(RagdollEngine::MoveId::Throw);
+                    }
+                    // 3+4: Dropkick
+                    if (keyPressed->code == sf::Keyboard::Key::Numpad9 || keyPressed->code == sf::Keyboard::Key::LBracket) {
                         p2.getController()->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
                     }
+                    // Dashing: Double-tap forward or back requiring key release
+                    if (keyPressed->code == sf::Keyboard::Key::Right) {
+                        if (!p2RightDown) {
+                            p2RightDown = true;
+                            float now = timeManager.getGameTime();
+                            if (now - p2LastRightReleaseTime < 0.22f) {
+                                p2.getController()->triggerDash(1);
+                            }
+                        }
+                    }
+                    if (keyPressed->code == sf::Keyboard::Key::Left) {
+                        if (!p2LeftDown) {
+                            p2LeftDown = true;
+                            float now = timeManager.getGameTime();
+                            if (now - p2LastLeftReleaseTime < 0.22f) {
+                                p2.getController()->triggerDash(-1);
+                            }
+                        }
+                    }
+
                     // Jump
                     if (keyPressed->code == sf::Keyboard::Key::Up || keyPressed->code == sf::Keyboard::Key::Numpad0) {
                         p2.getController()->jump();
@@ -273,6 +402,27 @@ int main() {
                         applyRadialImpulse(p1.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
                         applyRadialImpulse(p2.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
                     }
+                }
+            }
+
+            // Key Release Handling for Double-Tap Dash Detection
+            if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {
+                float now = timeManager.getGameTime();
+                if (keyReleased->code == sf::Keyboard::Key::D) {
+                    p1DDown = false;
+                    p1LastDReleaseTime = now;
+                }
+                if (keyReleased->code == sf::Keyboard::Key::A) {
+                    p1ADown = false;
+                    p1LastAReleaseTime = now;
+                }
+                if (keyReleased->code == sf::Keyboard::Key::Right) {
+                    p2RightDown = false;
+                    p2LastRightReleaseTime = now;
+                }
+                if (keyReleased->code == sf::Keyboard::Key::Left) {
+                    p2LeftDown = false;
+                    p2LastLeftReleaseTime = now;
                 }
             }
         }
@@ -374,14 +524,20 @@ int main() {
             float topY = 32.0f;
             float barWidth = 560.0f;
             float barHeight = 26.0f;
+            float ragePulse = (std::sin(timeManager.getGameTime() * 9.0f) + 1.0f) * 0.5f;
 
             // --- P1 HEALTH BAR (Top Left) ---
-            // Background slot
+            // Background slot with Tekken 7 Rage pulse
             sf::RectangleShape p1Bg(sf::Vector2f(barWidth, barHeight));
             p1Bg.setPosition(sf::Vector2f(90.0f, topY));
             p1Bg.setFillColor(sf::Color(25, 28, 36, 230));
-            p1Bg.setOutlineColor(sf::Color(80, 90, 110));
-            p1Bg.setOutlineThickness(2.0f);
+            if (p1.isInRage()) {
+                p1Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
+                p1Bg.setOutlineThickness(3.5f);
+            } else {
+                p1Bg.setOutlineColor(sf::Color(80, 90, 110));
+                p1Bg.setOutlineThickness(2.0f);
+            }
             window.draw(p1Bg);
 
             // Ghost Lag Bar (Yellow damage lag)
@@ -409,6 +565,22 @@ int main() {
             p1Name.setPosition(sf::Vector2f(90.0f, topY - 26.0f));
             window.draw(p1Name);
 
+            // P1 RAGE Badge
+            if (p1.isInRage()) {
+                sf::RectangleShape p1RageBadge(sf::Vector2f(56.0f, 18.0f));
+                p1RageBadge.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 12.0f, topY - 24.0f));
+                p1RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
+                p1RageBadge.setOutlineColor(sf::Color(255, 225, 40));
+                p1RageBadge.setOutlineThickness(1.5f);
+                window.draw(p1RageBadge);
+
+                sf::Text p1RageText(hudFont, "RAGE", 11);
+                p1RageText.setStyle(sf::Text::Bold);
+                p1RageText.setFillColor(sf::Color(255, 245, 100));
+                p1RageText.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 23.0f, topY - 23.0f));
+                window.draw(p1RageText);
+            }
+
             // P1 Victory Gems
             for (int r = 0; r < 2; ++r) {
                 sf::CircleShape gem(6.0f);
@@ -421,12 +593,17 @@ int main() {
             }
 
             // --- P2 HEALTH BAR (Top Right) ---
-            // Background slot
+            // Background slot with Tekken 7 Rage pulse
             sf::RectangleShape p2Bg(sf::Vector2f(barWidth, barHeight));
             p2Bg.setPosition(sf::Vector2f(950.0f, topY));
             p2Bg.setFillColor(sf::Color(25, 28, 36, 230));
-            p2Bg.setOutlineColor(sf::Color(80, 90, 110));
-            p2Bg.setOutlineThickness(2.0f);
+            if (p2.isInRage()) {
+                p2Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
+                p2Bg.setOutlineThickness(3.5f);
+            } else {
+                p2Bg.setOutlineColor(sf::Color(80, 90, 110));
+                p2Bg.setOutlineThickness(2.0f);
+            }
             window.draw(p2Bg);
 
             // Ghost Lag Bar
@@ -454,6 +631,22 @@ int main() {
             p2Name.setOrigin(sf::Vector2f(p2Name.getLocalBounds().size.x, 0.0f));
             p2Name.setPosition(sf::Vector2f(1510.0f, topY - 26.0f));
             window.draw(p2Name);
+
+            // P2 RAGE Badge
+            if (p2.isInRage()) {
+                sf::RectangleShape p2RageBadge(sf::Vector2f(56.0f, 18.0f));
+                p2RageBadge.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 68.0f, topY - 24.0f));
+                p2RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
+                p2RageBadge.setOutlineColor(sf::Color(255, 225, 40));
+                p2RageBadge.setOutlineThickness(1.5f);
+                window.draw(p2RageBadge);
+
+                sf::Text p2RageText(hudFont, "RAGE", 11);
+                p2RageText.setStyle(sf::Text::Bold);
+                p2RageText.setFillColor(sf::Color(255, 245, 100));
+                p2RageText.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 57.0f, topY - 23.0f));
+                window.draw(p2RageText);
+            }
 
             // P2 Victory Gems
             for (int r = 0; r < 2; ++r) {
@@ -557,10 +750,10 @@ int main() {
             }
 
             // Bottom Quick Move Reference
-            sf::Text moveHelp(hudFont, "F1: Cycle P1 Character | F2: Cycle P2 Character | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: WASD + J (Jab), K (Cross / Fwd+K: EWGF), U (Sweep), I (Hopkick), O (Dropkick)\nP2: Arrows + Num 1 (Jab), Num 2 (Cross / EWGF), Num 4 (Sweep), Num 5 (Hopkick), Num 6 (Dropkick)", 12);
+            sf::Text moveHelp(hudFont, "F1/F2: Cycle Character | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\nP2: 1 (Num1), 2 (Num2), 3 (Num4), 4 (Num5) | 1+2: (Num3) | 1+3: Throw (Num6) | 3+4: (Num9)\nFwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back", 12);
             moveHelp.setFillColor(sf::Color(150, 165, 185));
             moveHelp.setOrigin(sf::Vector2f(moveHelp.getLocalBounds().size.x * 0.5f, 0.0f));
-            moveHelp.setPosition(sf::Vector2f(800.0f, 850.0f));
+            moveHelp.setPosition(sf::Vector2f(800.0f, 842.0f));
             window.draw(moveHelp);
         }
 
