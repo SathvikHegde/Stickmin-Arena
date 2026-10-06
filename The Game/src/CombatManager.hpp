@@ -119,7 +119,9 @@ public:
     }
 
     MatchState getState() const { return m_state; }
+    void setState(MatchState s) { m_state = s; }
     float getRoundTimer() const { return m_roundTimer; }
+    void setRoundTimer(float t) { m_roundTimer = t; }
     int getRoundNumber() const { return m_roundNumber; }
     int getRoundWinner() const { return m_roundWinner; }
 

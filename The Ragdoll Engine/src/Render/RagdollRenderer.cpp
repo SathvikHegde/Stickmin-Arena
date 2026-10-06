@@ -589,6 +589,26 @@ void RagdollRenderer::drawHead(sf::RenderWindow& window, b2BodyId headBody, int 
     drawFace(window, pos, radius, rad, facingDir, character);
 }
 
+void RagdollRenderer::drawPortrait(sf::RenderWindow& window, const sf::Vector2f& pos, float radius, int facingDir, const CharacterDefinition& character) {
+    // 1. Back cosmetics (hair mane, far earcups, etc.)
+    drawBackCosmetics(window, pos, radius, facingDir, character);
+
+    // 2. Head circle (Flash crisp black outline and white fill)
+    sf::CircleShape headCircle(radius);
+    headCircle.setOrigin(sf::Vector2f(radius, radius));
+    headCircle.setPosition(pos);
+    headCircle.setFillColor(character.headFillColor);
+    headCircle.setOutlineColor(character.headOutlineColor);
+    headCircle.setOutlineThickness(std::max(2.0f, radius * 0.12f));
+    window.draw(headCircle);
+
+    // 3. Front cosmetics (front bangs, pilot headphones, top hats, etc.)
+    drawFrontCosmetics(window, pos, radius, facingDir, character);
+
+    // 4. Expressive Face (Flash oval pill eyes, gleams, brows, mouth/mustache)
+    drawFace(window, pos, radius, 0.0f, facingDir, character);
+}
+
 void RagdollRenderer::drawDropShadow(sf::RenderWindow& window, const RagdollSkeleton& skeleton, float groundY) {
     sf::Vector2f pos = skeleton.getPositionPixels();
     float heightAboveGround = std::max(0.0f, groundY - pos.y);

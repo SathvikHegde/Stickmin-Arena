@@ -9,6 +9,7 @@
 
 #include "Fighter.hpp"
 #include "CombatManager.hpp"
+#include "MenuManager.hpp"
 
 #include <iostream>
 #include <memory>
@@ -45,6 +46,8 @@ int main() {
     if (fontLoaded) {
         juiceFX.setFont(&hudFont);
     }
+
+    StickminGame::MenuManager menuManager(fontLoaded ? &hudFont : nullptr, &ragdollRenderer, &stageRenderer);
 
     // 3. Build Arena Geometry (Tekken-style flat combat arena with left & right boundary walls)
     // Floor
@@ -116,68 +119,87 @@ int main() {
         timeManager.update();
         float realDt = timeManager.getRealDeltaTime();
 
+        // 1. Update Menu Manager State
+        menuManager.update(realDt);
+        if (menuManager.consumeQuitRequested()) {
+            window.close();
+        }
+
+        if (menuManager.consumeStartMatchRequested()) {
+            p1CharIdx = menuManager.getP1CharIndex();
+            p2CharIdx = menuManager.getP2CharIndex();
+            p1.setCharacterDef(roster[p1CharIdx]);
+            p2.setCharacterDef(roster[p2CharIdx]);
+            p1.respawn(sf::Vector2f(650.0f, 735.0f));
+            p2.respawn(sf::Vector2f(950.0f, 735.0f));
+            p1.resetRoundsWon();
+            p2.resetRoundsWon();
+            stageRenderer.setStage(static_cast<RagdollEngine::StageType>(menuManager.getSelectedStageIndex()));
+            combatManager.startRound(1);
+        }
+
+        if (menuManager.consumeRestartMatchRequested()) {
+            p1.respawn(sf::Vector2f(650.0f, 735.0f));
+            p2.respawn(sf::Vector2f(950.0f, 735.0f));
+            p1.resetRoundsWon();
+            p2.resetRoundsWon();
+            combatManager.startRound(1);
+        }
+
         // SFML 3 Event Handling
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
 
+            if (const auto* mouseMoved = event->getIf<sf::Event::MouseMoved>()) {
+                sf::Vector2f mousePos(static_cast<float>(mouseMoved->position.x), static_cast<float>(mouseMoved->position.y));
+                menuManager.handleMouseMove(mousePos);
+            }
+
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->code == sf::Keyboard::Key::Escape) {
-                    window.close();
-                }
-
-                // Cycle Player 1 Fighter: F1 or Num7
-                if (keyPressed->code == sf::Keyboard::Key::F1 || keyPressed->code == sf::Keyboard::Key::Numpad7) {
-                    p1CharIdx = (p1CharIdx + 1) % roster.size();
-                    p1.setCharacterDef(roster[p1CharIdx]);
-                    juiceFX.spawnFloatingText(p1.getSkeleton()->getPositionPixels() - sf::Vector2f(0.0f, 65.0f),
-                        p1.getName(), p1.getCharacterDef().accentColor, 1.8f);
-                }
-
-                // Cycle Player 2 Fighter: F2 or Num8
-                if (keyPressed->code == sf::Keyboard::Key::F2 || keyPressed->code == sf::Keyboard::Key::Numpad8) {
-                    p2CharIdx = (p2CharIdx + 1) % roster.size();
-                    p2.setCharacterDef(roster[p2CharIdx]);
-                    juiceFX.spawnFloatingText(p2.getSkeleton()->getPositionPixels() - sf::Vector2f(0.0f, 65.0f),
-                        p2.getName(), p2.getCharacterDef().accentColor, 1.8f);
-                }
-
-                // Cycle Stage Arena: F5
-                if (keyPressed->code == sf::Keyboard::Key::F5) {
-                    stageRenderer.cycleStage();
-                    juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 320.0f),
-                        stageRenderer.getStageName(), stageRenderer.getStageThemeColor(), 2.0f);
-                }
-
-                // Rematch / Reset
-                if (keyPressed->code == sf::Keyboard::Key::B || keyPressed->code == sf::Keyboard::Key::Enter) {
-                    p1.respawn(sf::Vector2f(650.0f, 735.0f));
-                    p2.respawn(sf::Vector2f(950.0f, 735.0f));
-                    p1.resetRoundsWon();
-                    p2.resetRoundsWon();
-                    combatManager.startRound(1);
-                    juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
-                }
-
-                // Slow-mo toggle
-                if (keyPressed->code == sf::Keyboard::Key::Tab) {
-                    if (timeManager.getTimeScale() < 0.5f) {
-                        timeManager.setBaseTimeScale(1.0f);
-                        timeManager.triggerSlowMo(1.0f, 0.0f);
-                    } else {
-                        timeManager.triggerSlowMo(0.12f, 2.0f);
-                        camera.addTrauma(0.35f);
+                // If not in active battle, delegate directly to menu manager
+                if (menuManager.getState() != StickminGame::MenuState::Battle) {
+                    menuManager.handleKeyPressed(keyPressed->code);
+                } else {
+                    // In-Battle Hotkeys
+                    if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
+                        if (keyPressed->code == sf::Keyboard::Key::B || keyPressed->code == sf::Keyboard::Key::Enter) {
+                            p1.respawn(sf::Vector2f(650.0f, 735.0f));
+                            p2.respawn(sf::Vector2f(950.0f, 735.0f));
+                            p1.resetRoundsWon();
+                            p2.resetRoundsWon();
+                            combatManager.startRound(1);
+                            juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
+                        } else if (keyPressed->code == sf::Keyboard::Key::C) {
+                            menuManager.setState(StickminGame::MenuState::CharacterSelect);
+                        } else if (keyPressed->code == sf::Keyboard::Key::S) {
+                            menuManager.setState(StickminGame::MenuState::StageSelect);
+                        } else if (keyPressed->code == sf::Keyboard::Key::M || keyPressed->code == sf::Keyboard::Key::Escape) {
+                            menuManager.setState(StickminGame::MenuState::TitleScreen);
+                        }
+                    } else if (keyPressed->code == sf::Keyboard::Key::Escape) {
+                        menuManager.setState(StickminGame::MenuState::PauseMenu);
+                    } else if (keyPressed->code == sf::Keyboard::Key::F3) {
+                        menuManager.handleKeyPressed(sf::Keyboard::Key::F3);
+                    } else if (menuManager.getGameMode() == StickminGame::GameMode::Practice &&
+                               (keyPressed->code == sf::Keyboard::Key::R)) {
+                        p1.respawn(sf::Vector2f(650.0f, 735.0f));
+                        p2.respawn(sf::Vector2f(950.0f, 735.0f));
+                        combatManager.startRound(1);
+                        juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "RESET POSITIONS!", sf::Color(80, 200, 255), 1.4f);
                     }
-                }
 
-                // Ragdoll Limp debug toggles
-                if (keyPressed->code == sf::Keyboard::Key::R) {
-                    p1.getController()->toggleLimp();
-                }
-                if (keyPressed->code == sf::Keyboard::Key::T) {
-                    p2.getController()->toggleLimp();
-                }
+                    // Slow-mo toggle
+                    if (keyPressed->code == sf::Keyboard::Key::Tab) {
+                        if (timeManager.getTimeScale() < 0.5f) {
+                            timeManager.setBaseTimeScale(1.0f);
+                            timeManager.triggerSlowMo(1.0f, 0.0f);
+                        } else {
+                            timeManager.triggerSlowMo(0.12f, 2.0f);
+                            camera.addTrauma(0.35f);
+                        }
+                    }
 
                 // -------------------------------------------------------------
                 // PLAYER 1 COMBAT INPUTS
@@ -383,34 +405,63 @@ int main() {
                     }
                 }
             }
+        }
 
-            // Mouse Click Radial Blast Wave
+        // Mouse Click Handling
             if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
-                if (mousePressed->button == sf::Mouse::Button::Left) {
-                    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-                    sf::Vector2f worldPos = window.mapPixelToCoords(mousePixel, camera.getView());
+                sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+                sf::Vector2f screenPos(static_cast<float>(mousePixel.x), static_cast<float>(mousePixel.y));
+                bool handled = menuManager.handleMouseClick(screenPos, mousePressed->button);
 
-                    juiceFX.spawnImpact(worldPos, sf::Vector2f(0.0f, -1.0f), sf::Color(120, 220, 255), true);
-                    camera.addTrauma(0.55f);
+                // If match is over, check interactive button clicks
+                if (!handled && menuManager.getState() == StickminGame::MenuState::Battle &&
+                    combatManager.getState() == StickminGame::MatchState::MatchOver &&
+                    mousePressed->button == sf::Mouse::Button::Left) {
+                    if (sf::FloatRect(sf::Vector2f(260.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
+                        p1.respawn(sf::Vector2f(650.0f, 735.0f));
+                        p2.respawn(sf::Vector2f(950.0f, 735.0f));
+                        p1.resetRoundsWon();
+                        p2.resetRoundsWon();
+                        combatManager.startRound(1);
+                        handled = true;
+                    } else if (sf::FloatRect(sf::Vector2f(520.0f, 475.0f), sf::Vector2f(250.0f, 44.0f)).contains(screenPos)) {
+                        menuManager.setState(StickminGame::MenuState::CharacterSelect);
+                        handled = true;
+                    } else if (sf::FloatRect(sf::Vector2f(810.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
+                        menuManager.setState(StickminGame::MenuState::StageSelect);
+                        handled = true;
+                    } else if (sf::FloatRect(sf::Vector2f(1070.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
+                        menuManager.setState(StickminGame::MenuState::TitleScreen);
+                        handled = true;
+                    }
+                }
 
-                    b2Vec2 blastCenter = RagdollEngine::PhysicsUnits::toMeters(worldPos);
-                    auto applyRadialImpulse = [&](b2BodyId body) {
-                        if (b2Body_IsValid(body)) {
-                            b2Vec2 bodyPos = b2Body_GetPosition(body);
-                            b2Vec2 delta = { bodyPos.x - blastCenter.x, bodyPos.y - blastCenter.y };
-                            float dist = std::sqrt(delta.x * delta.x + delta.y * delta.y);
-                            if (dist < 10.0f && dist > 0.01f) {
-                                float strength = (1.0f - dist / 10.0f) * 38.0f;
-                                float inv = 1.0f / dist;
-                                b2Body_ApplyLinearImpulseToCenter(body, b2Vec2{ delta.x * inv * strength, delta.y * inv * strength - 12.0f }, true);
+                // Sandbox impulse blast wave ONLY if Ctrl+Shift is held (dev cheat code)
+                if (!handled && menuManager.getState() == StickminGame::MenuState::Battle) {
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
+                        sf::Vector2f worldPos = window.mapPixelToCoords(mousePixel, camera.getView());
+                        juiceFX.spawnImpact(worldPos, sf::Vector2f(0.0f, -1.0f), sf::Color(120, 220, 255), true);
+                        camera.addTrauma(0.55f);
+
+                        b2Vec2 blastCenter = RagdollEngine::PhysicsUnits::toMeters(worldPos);
+                        auto applyRadialImpulse = [&](b2BodyId body) {
+                            if (b2Body_IsValid(body)) {
+                                b2Vec2 bodyPos = b2Body_GetPosition(body);
+                                b2Vec2 delta = { bodyPos.x - blastCenter.x, bodyPos.y - blastCenter.y };
+                                float dist = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+                                if (dist < 10.0f && dist > 0.01f) {
+                                    float strength = (1.0f - dist / 10.0f) * 38.0f;
+                                    float inv = 1.0f / dist;
+                                    b2Body_ApplyLinearImpulseToCenter(body, b2Vec2{ delta.x * inv * strength, delta.y * inv * strength - 12.0f }, true);
+                                }
                             }
-                        }
-                    };
+                        };
 
-                    for (b2BodyId p : props) applyRadialImpulse(p);
-                    for (size_t i = 0; i < static_cast<size_t>(RagdollEngine::LimbType::Count); ++i) {
-                        applyRadialImpulse(p1.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
-                        applyRadialImpulse(p2.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
+                        for (b2BodyId p : props) applyRadialImpulse(p);
+                        for (size_t i = 0; i < static_cast<size_t>(RagdollEngine::LimbType::Count); ++i) {
+                            applyRadialImpulse(p1.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
+                            applyRadialImpulse(p2.getSkeleton()->getBody(static_cast<RagdollEngine::LimbType>(i)));
+                        }
                     }
                 }
             }
@@ -438,339 +489,414 @@ int main() {
         }
 
         // Continuous Movement Inputs
-        float p1MoveX = 0.0f;
-        float p1MoveY = 0.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) p1MoveX -= 1.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) p1MoveX += 1.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) p1MoveY += 1.0f;
-        p1.getController()->setMoveInput(p1MoveX, p1MoveY);
+        if (menuManager.getState() == StickminGame::MenuState::Battle && combatManager.getState() == StickminGame::MatchState::Fighting) {
+            float p1MoveX = 0.0f;
+            float p1MoveY = 0.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) p1MoveX -= 1.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) p1MoveX += 1.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) p1MoveY += 1.0f;
+            p1.getController()->setMoveInput(p1MoveX, p1MoveY);
 
-        float p2MoveX = 0.0f;
-        float p2MoveY = 0.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) p2MoveX -= 1.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) p2MoveX += 1.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) p2MoveY += 1.0f;
-        p2.getController()->setMoveInput(p2MoveX, p2MoveY);
-
-        // Fixed-Timestep Physics Step
-        while (timeManager.consumeFixedStep()) {
-            float fixedStep = timeManager.getFixedPhysicsStep();
-            p1.getController()->update(fixedStep);
-            p2.getController()->update(fixedStep);
-            physicsWorld.step(fixedStep);
+            float p2MoveX = 0.0f;
+            float p2MoveY = 0.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) p2MoveX -= 1.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) p2MoveX += 1.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) p2MoveY += 1.0f;
+            p2.getController()->setMoveInput(p2MoveX, p2MoveY);
+        } else {
+            p1.getController()->setMoveInput(0.0f, 0.0f);
+            p2.getController()->setMoveInput(0.0f, 0.0f);
         }
 
-        // Update Combat & Fighters
-        p1.update(realDt, juiceFX);
-        p2.update(realDt, juiceFX);
-        stageRenderer.update(realDt);
-        combatManager.update(realDt, timeManager, camera, juiceFX, &stageRenderer);
-        juiceFX.update(realDt);
+        if (menuManager.getState() == StickminGame::MenuState::Battle) {
+            // Fixed-Timestep Physics Step
+            while (timeManager.consumeFixedStep()) {
+                float fixedStep = timeManager.getFixedPhysicsStep();
+                p1.getController()->update(fixedStep);
+                p2.getController()->update(fixedStep);
+                physicsWorld.step(fixedStep);
+            }
 
-        // Update Camera
-        camera.clearFocusPoints();
-        camera.addFocusPoint(p1.getSkeleton()->getPositionPixels());
-        camera.addFocusPoint(p2.getSkeleton()->getPositionPixels());
-        camera.update(realDt);
+            // Update Combat & Fighters
+            p1.update(realDt, juiceFX);
+            p2.update(realDt, juiceFX);
+            stageRenderer.update(realDt);
+            combatManager.update(realDt, timeManager, camera, juiceFX, &stageRenderer);
+            juiceFX.update(realDt);
+
+            // Practice Mode auto-heal & timer hold
+            if (menuManager.getGameMode() == StickminGame::GameMode::Practice) {
+                combatManager.setRoundTimer(99.0f);
+                if (p2.getHealth() < 40.0f) {
+                    p2.resetHealth();
+                }
+                if (p1.getHealth() < 40.0f) {
+                    p1.resetHealth();
+                }
+            }
+
+            // Update Camera
+            camera.clearFocusPoints();
+            camera.addFocusPoint(p1.getSkeleton()->getPositionPixels());
+            camera.addFocusPoint(p2.getSkeleton()->getPositionPixels());
+            camera.update(realDt);
+        } else if (menuManager.getState() == StickminGame::MenuState::StageSelect) {
+            stageRenderer.update(realDt);
+        }
 
         // -------------------------------------------------------------
         // RENDER PASS
         // -------------------------------------------------------------
         window.clear(sf::Color(10, 12, 16));
 
-        // World-Space Camera View
-        camera.apply(window);
+        bool inBattleMode = (menuManager.getState() == StickminGame::MenuState::Battle ||
+                             menuManager.getState() == StickminGame::MenuState::PauseMenu ||
+                             (menuManager.getState() == StickminGame::MenuState::CommandListModal && menuManager.getPrevModalState() != StickminGame::MenuState::TitleScreen));
 
-        // 1. Stage Parallax Background (Sky, mountains, clouds, airship hull / fortress / vault)
-        stageRenderer.drawBackground(window, camera.getView());
+        if (inBattleMode) {
 
-        // 2. Stage Themed Platforms & Arena Walls
-        stageRenderer.drawPlatforms(window, physicsWorld.getPlatforms());
+            // World-Space Camera View
+            camera.apply(window);
 
-        // 3. Props (Crates)
-        for (b2BodyId propId : props) {
-            if (b2Body_IsValid(propId)) {
-                sf::Vector2f pos = RagdollEngine::PhysicsUnits::toPixels(b2Body_GetPosition(propId));
-                b2Rot rot = b2Body_GetRotation(propId);
-                float rad = b2Rot_GetAngle(rot);
-                sf::RectangleShape prop(sf::Vector2f(28.0f, 28.0f));
-                prop.setOrigin(sf::Vector2f(14.0f, 14.0f));
-                prop.setPosition(pos);
-                prop.setRotation(sf::radians(rad));
-                prop.setFillColor(sf::Color(180, 140, 60));
-                prop.setOutlineColor(sf::Color(40, 30, 10));
-                prop.setOutlineThickness(2.0f);
-                window.draw(prop);
-            }
-        }
+            // 1. Stage Parallax Background (Sky, mountains, clouds, airship hull / fortress / vault)
+            stageRenderer.drawBackground(window, camera.getView());
 
-        // 4. Stage Wall Damage Decals (Wall splat cracks)
-        stageRenderer.drawWallCracks(window);
+            // 2. Stage Themed Platforms & Arena Walls
+            stageRenderer.drawPlatforms(window, physicsWorld.getPlatforms());
 
-        // 5. Ground Drop Shadows
-        ragdollRenderer.drawDropShadow(window, *p1.getSkeleton(), 800.0f);
-        ragdollRenderer.drawDropShadow(window, *p2.getSkeleton(), 800.0f);
-
-        // 6. Draw Fighters
-        ragdollRenderer.draw(window, *p1.getSkeleton(), p1.getController()->getFacingDirection(), p1.getTheme());
-        ragdollRenderer.draw(window, *p2.getSkeleton(), p2.getController()->getFacingDirection(), p2.getTheme());
-
-        // 7. Draw Juice FX (Motion Ribbon Trails, Starbursts, Lightning Arcs, Sparks, Shields)
-        juiceFX.draw(window);
-
-        // 8. Foreground Atmospheric Overlays & Dynamic Lighting (Snowstorm, searchlights, wind streaks, tumbleweed, dust)
-        stageRenderer.drawAtmosphereAndLighting(window, camera.getView());
-
-        // -------------------------------------------------------------
-        // TEKKEN FIGHTING GAME HUD OVERLAY (Screen-Space)
-        // -------------------------------------------------------------
-        window.setView(window.getDefaultView());
-
-        if (fontLoaded) {
-            float topY = 32.0f;
-            float barWidth = 560.0f;
-            float barHeight = 26.0f;
-            float ragePulse = (std::sin(timeManager.getGameTime() * 9.0f) + 1.0f) * 0.5f;
-
-            // --- P1 HEALTH BAR (Top Left) ---
-            // Background slot with Tekken 7 Rage pulse
-            sf::RectangleShape p1Bg(sf::Vector2f(barWidth, barHeight));
-            p1Bg.setPosition(sf::Vector2f(90.0f, topY));
-            p1Bg.setFillColor(sf::Color(25, 28, 36, 230));
-            if (p1.isInRage()) {
-                p1Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
-                p1Bg.setOutlineThickness(3.5f);
-            } else {
-                p1Bg.setOutlineColor(sf::Color(80, 90, 110));
-                p1Bg.setOutlineThickness(2.0f);
-            }
-            window.draw(p1Bg);
-
-            // Ghost Lag Bar (Yellow damage lag)
-            float p1GhostWidth = (p1.getGhostHealth() / p1.getMaxHealth()) * barWidth;
-            if (p1GhostWidth > 0.0f) {
-                sf::RectangleShape p1Ghost(sf::Vector2f(p1GhostWidth, barHeight));
-                p1Ghost.setPosition(sf::Vector2f(90.0f + (barWidth - p1GhostWidth), topY)); // Drains toward center
-                p1Ghost.setFillColor(sf::Color(255, 200, 50, 220));
-                window.draw(p1Ghost);
+            // 3. Props (Crates)
+            for (b2BodyId propId : props) {
+                if (b2Body_IsValid(propId)) {
+                    sf::Vector2f pos = RagdollEngine::PhysicsUnits::toPixels(b2Body_GetPosition(propId));
+                    b2Rot rot = b2Body_GetRotation(propId);
+                    float rad = b2Rot_GetAngle(rot);
+                    sf::RectangleShape prop(sf::Vector2f(28.0f, 28.0f));
+                    prop.setOrigin(sf::Vector2f(14.0f, 14.0f));
+                    prop.setPosition(pos);
+                    prop.setRotation(sf::radians(rad));
+                    prop.setFillColor(sf::Color(180, 140, 60));
+                    prop.setOutlineColor(sf::Color(40, 30, 10));
+                    prop.setOutlineThickness(2.0f);
+                    window.draw(prop);
+                }
             }
 
-            // Current Health Bar (Dynamic character accent color)
-            float p1CurWidth = (p1.getHealth() / p1.getMaxHealth()) * barWidth;
-            if (p1CurWidth > 0.0f) {
-                sf::RectangleShape p1Fill(sf::Vector2f(p1CurWidth, barHeight));
-                p1Fill.setPosition(sf::Vector2f(90.0f + (barWidth - p1CurWidth), topY));
-                p1Fill.setFillColor(p1.getCharacterDef().accentColor);
-                window.draw(p1Fill);
+            // 4. Stage Wall Damage Decals (Wall splat cracks)
+            stageRenderer.drawWallCracks(window);
+
+            // 5. Ground Drop Shadows
+            ragdollRenderer.drawDropShadow(window, *p1.getSkeleton(), 800.0f);
+            ragdollRenderer.drawDropShadow(window, *p2.getSkeleton(), 800.0f);
+
+            // 6. Draw Fighters
+            ragdollRenderer.draw(window, *p1.getSkeleton(), p1.getController()->getFacingDirection(), p1.getTheme());
+            ragdollRenderer.draw(window, *p2.getSkeleton(), p2.getController()->getFacingDirection(), p2.getTheme());
+
+            // 7. Draw Juice FX (Motion Ribbon Trails, Starbursts, Lightning Arcs, Sparks, Shields)
+            juiceFX.draw(window);
+
+            // 8. Foreground Atmospheric Overlays & Dynamic Lighting (Snowstorm, searchlights, wind streaks, tumbleweed, dust)
+            stageRenderer.drawAtmosphereAndLighting(window, camera.getView());
+
+            // -------------------------------------------------------------
+            // TEKKEN FIGHTING GAME HUD OVERLAY (Screen-Space)
+            // -------------------------------------------------------------
+            window.setView(window.getDefaultView());
+
+            if (fontLoaded) {
+                float topY = 32.0f;
+                float barWidth = 560.0f;
+                float barHeight = 26.0f;
+                float ragePulse = (std::sin(timeManager.getGameTime() * 9.0f) + 1.0f) * 0.5f;
+
+                // --- P1 HEALTH BAR (Top Left) ---
+                // Background slot with Tekken 7 Rage pulse
+                sf::RectangleShape p1Bg(sf::Vector2f(barWidth, barHeight));
+                p1Bg.setPosition(sf::Vector2f(90.0f, topY));
+                p1Bg.setFillColor(sf::Color(25, 28, 36, 230));
+                if (p1.isInRage()) {
+                    p1Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
+                    p1Bg.setOutlineThickness(3.5f);
+                } else {
+                    p1Bg.setOutlineColor(sf::Color(80, 90, 110));
+                    p1Bg.setOutlineThickness(2.0f);
+                }
+                window.draw(p1Bg);
+
+                // Ghost Lag Bar (Yellow damage lag)
+                float p1GhostWidth = (p1.getGhostHealth() / p1.getMaxHealth()) * barWidth;
+                if (p1GhostWidth > 0.0f) {
+                    sf::RectangleShape p1Ghost(sf::Vector2f(p1GhostWidth, barHeight));
+                    p1Ghost.setPosition(sf::Vector2f(90.0f + (barWidth - p1GhostWidth), topY)); // Drains toward center
+                    p1Ghost.setFillColor(sf::Color(255, 200, 50, 220));
+                    window.draw(p1Ghost);
+                }
+
+                // Current Health Bar (Dynamic character accent color)
+                float p1CurWidth = (p1.getHealth() / p1.getMaxHealth()) * barWidth;
+                if (p1CurWidth > 0.0f) {
+                    sf::RectangleShape p1Fill(sf::Vector2f(p1CurWidth, barHeight));
+                    p1Fill.setPosition(sf::Vector2f(90.0f + (barWidth - p1CurWidth), topY));
+                    p1Fill.setFillColor(p1.getCharacterDef().accentColor);
+                    window.draw(p1Fill);
+                }
+
+                // P1 Nameplate & Title
+                sf::Text p1Name(hudFont, p1.getName(), 18);
+                p1Name.setStyle(sf::Text::Bold);
+                p1Name.setFillColor(p1.getCharacterDef().accentColor);
+                p1Name.setPosition(sf::Vector2f(90.0f, topY - 26.0f));
+                window.draw(p1Name);
+
+                // P1 RAGE Badge
+                if (p1.isInRage()) {
+                    sf::RectangleShape p1RageBadge(sf::Vector2f(56.0f, 18.0f));
+                    p1RageBadge.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 12.0f, topY - 24.0f));
+                    p1RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
+                    p1RageBadge.setOutlineColor(sf::Color(255, 225, 40));
+                    p1RageBadge.setOutlineThickness(1.5f);
+                    window.draw(p1RageBadge);
+
+                    sf::Text p1RageText(hudFont, "RAGE", 11);
+                    p1RageText.setStyle(sf::Text::Bold);
+                    p1RageText.setFillColor(sf::Color(255, 245, 100));
+                    p1RageText.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 23.0f, topY - 23.0f));
+                    window.draw(p1RageText);
+                }
+
+                // P1 Victory Gems
+                for (int r = 0; r < 2; ++r) {
+                    sf::CircleShape gem(6.0f);
+                    gem.setOrigin(sf::Vector2f(6.0f, 6.0f));
+                    gem.setPosition(sf::Vector2f(620.0f - r * 20.0f, topY + barHeight + 14.0f));
+                    gem.setFillColor(r < p1.getRoundsWon() ? sf::Color(255, 215, 0) : sf::Color(40, 45, 55));
+                    gem.setOutlineColor(sf::Color(255, 255, 255, 160));
+                    gem.setOutlineThickness(1.5f);
+                    window.draw(gem);
+                }
+
+                // --- P2 HEALTH BAR (Top Right) ---
+                // Background slot with Tekken 7 Rage pulse
+                sf::RectangleShape p2Bg(sf::Vector2f(barWidth, barHeight));
+                p2Bg.setPosition(sf::Vector2f(950.0f, topY));
+                p2Bg.setFillColor(sf::Color(25, 28, 36, 230));
+                if (p2.isInRage()) {
+                    p2Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
+                    p2Bg.setOutlineThickness(3.5f);
+                } else {
+                    p2Bg.setOutlineColor(sf::Color(80, 90, 110));
+                    p2Bg.setOutlineThickness(2.0f);
+                }
+                window.draw(p2Bg);
+
+                // Ghost Lag Bar
+                float p2GhostWidth = (p2.getGhostHealth() / p2.getMaxHealth()) * barWidth;
+                if (p2GhostWidth > 0.0f) {
+                    sf::RectangleShape p2Ghost(sf::Vector2f(p2GhostWidth, barHeight));
+                    p2Ghost.setPosition(sf::Vector2f(950.0f, topY)); // Drains toward center
+                    p2Ghost.setFillColor(sf::Color(255, 200, 50, 220));
+                    window.draw(p2Ghost);
+                }
+
+                // Current Health Bar (Dynamic character accent color)
+                float p2CurWidth = (p2.getHealth() / p2.getMaxHealth()) * barWidth;
+                if (p2CurWidth > 0.0f) {
+                    sf::RectangleShape p2Fill(sf::Vector2f(p2CurWidth, barHeight));
+                    p2Fill.setPosition(sf::Vector2f(950.0f, topY));
+                    p2Fill.setFillColor(p2.getCharacterDef().accentColor);
+                    window.draw(p2Fill);
+                }
+
+                // P2 Nameplate & Title
+                sf::Text p2Name(hudFont, p2.getName(), 18);
+                p2Name.setStyle(sf::Text::Bold);
+                p2Name.setFillColor(p2.getCharacterDef().accentColor);
+                p2Name.setOrigin(sf::Vector2f(p2Name.getLocalBounds().size.x, 0.0f));
+                p2Name.setPosition(sf::Vector2f(1510.0f, topY - 26.0f));
+                window.draw(p2Name);
+
+                // P2 RAGE Badge
+                if (p2.isInRage()) {
+                    sf::RectangleShape p2RageBadge(sf::Vector2f(56.0f, 18.0f));
+                    p2RageBadge.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 68.0f, topY - 24.0f));
+                    p2RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
+                    p2RageBadge.setOutlineColor(sf::Color(255, 225, 40));
+                    p2RageBadge.setOutlineThickness(1.5f);
+                    window.draw(p2RageBadge);
+
+                    sf::Text p2RageText(hudFont, "RAGE", 11);
+                    p2RageText.setStyle(sf::Text::Bold);
+                    p2RageText.setFillColor(sf::Color(255, 245, 100));
+                    p2RageText.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 57.0f, topY - 23.0f));
+                    window.draw(p2RageText);
+                }
+
+                // P2 Victory Gems
+                for (int r = 0; r < 2; ++r) {
+                    sf::CircleShape gem(6.0f);
+                    gem.setOrigin(sf::Vector2f(6.0f, 6.0f));
+                    gem.setPosition(sf::Vector2f(980.0f + r * 20.0f, topY + barHeight + 14.0f));
+                    gem.setFillColor(r < p2.getRoundsWon() ? sf::Color(255, 215, 0) : sf::Color(40, 45, 55));
+                    gem.setOutlineColor(sf::Color(255, 255, 255, 160));
+                    gem.setOutlineThickness(1.5f);
+                    window.draw(gem);
+                }
+
+                // --- ROUND TIMER (Top Center) ---
+                sf::RectangleShape timerFrame(sf::Vector2f(110.0f, 64.0f));
+                timerFrame.setOrigin(sf::Vector2f(55.0f, 32.0f));
+                timerFrame.setPosition(sf::Vector2f(800.0f, topY + barHeight * 0.5f));
+                timerFrame.setFillColor(sf::Color(16, 18, 24, 240));
+                timerFrame.setOutlineColor(sf::Color(180, 190, 215));
+                timerFrame.setOutlineThickness(2.5f);
+                window.draw(timerFrame);
+
+                int sec = static_cast<int>(std::ceil(combatManager.getRoundTimer()));
+                std::string timerStr = (menuManager.getGameMode() == StickminGame::GameMode::Practice) ? "--" : std::to_string(sec);
+                sf::Text timerText(hudFont, timerStr, 32);
+                timerText.setStyle(sf::Text::Bold);
+                timerText.setFillColor(sec <= 10 && menuManager.getGameMode() != StickminGame::GameMode::Practice ? sf::Color(255, 60, 60) : sf::Color(245, 245, 250));
+                timerText.setOrigin(sf::Vector2f(timerText.getLocalBounds().size.x * 0.5f, timerText.getLocalBounds().size.y * 0.5f + 4.0f));
+                timerText.setPosition(sf::Vector2f(800.0f, topY + barHeight * 0.5f));
+                window.draw(timerText);
+
+                // Round Number Banner
+                std::string roundStr = (menuManager.getGameMode() == StickminGame::GameMode::Practice)
+                                     ? "PRACTICE"
+                                     : ("ROUND " + std::to_string(combatManager.getRoundNumber()));
+                sf::Text roundSub(hudFont, roundStr, 11);
+                roundSub.setStyle(sf::Text::Bold);
+                roundSub.setFillColor(sf::Color(160, 175, 200));
+                roundSub.setOrigin(sf::Vector2f(roundSub.getLocalBounds().size.x * 0.5f, 0.0f));
+                roundSub.setPosition(sf::Vector2f(800.0f, topY + barHeight + 12.0f));
+                window.draw(roundSub);
+
+                // --- P1 DYNAMIC COMBO DISPLAY ---
+                if (p1.getComboHits() > 1) {
+                    sf::Text p1ComboHits(hudFont, std::to_string(p1.getComboHits()) + " HITS!", 38);
+                    p1ComboHits.setStyle(sf::Text::Bold);
+                    p1ComboHits.setFillColor(sf::Color(60, 160, 255));
+                    p1ComboHits.setOutlineColor(sf::Color::Black);
+                    p1ComboHits.setOutlineThickness(3.0f);
+                    p1ComboHits.setPosition(sf::Vector2f(90.0f, 150.0f));
+                    window.draw(p1ComboHits);
+
+                    sf::Text p1ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p1.getComboDamage())), 18);
+                    p1ComboDmg.setStyle(sf::Text::Bold);
+                    p1ComboDmg.setFillColor(sf::Color(255, 220, 60));
+                    p1ComboDmg.setPosition(sf::Vector2f(92.0f, 200.0f));
+                    window.draw(p1ComboDmg);
+                }
+
+                // --- P2 DYNAMIC COMBO DISPLAY ---
+                if (p2.getComboHits() > 1) {
+                    sf::Text p2ComboHits(hudFont, std::to_string(p2.getComboHits()) + " HITS!", 38);
+                    p2ComboHits.setStyle(sf::Text::Bold);
+                    p2ComboHits.setFillColor(sf::Color(255, 60, 80));
+                    p2ComboHits.setOutlineColor(sf::Color::Black);
+                    p2ComboHits.setOutlineThickness(3.0f);
+                    p2ComboHits.setOrigin(sf::Vector2f(p2ComboHits.getLocalBounds().size.x, 0.0f));
+                    p2ComboHits.setPosition(sf::Vector2f(1510.0f, 150.0f));
+                    window.draw(p2ComboHits);
+
+                    sf::Text p2ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p2.getComboDamage())), 18);
+                    p2ComboDmg.setStyle(sf::Text::Bold);
+                    p2ComboDmg.setFillColor(sf::Color(255, 220, 60));
+                    p2ComboDmg.setOrigin(sf::Vector2f(p2ComboDmg.getLocalBounds().size.x, 0.0f));
+                    p2ComboDmg.setPosition(sf::Vector2f(1508.0f, 200.0f));
+                    window.draw(p2ComboDmg);
+                }
+
+                // --- ROUND INTRO & MATCH OVER BANNERS ---
+                if (combatManager.getState() == StickminGame::MatchState::RoundIntro) {
+                    sf::Text introText(hudFont, "ROUND " + std::to_string(combatManager.getRoundNumber()) + " // FIGHT!", 54);
+                    introText.setStyle(sf::Text::Bold);
+                    introText.setFillColor(sf::Color(255, 235, 60));
+                    introText.setOutlineColor(sf::Color(10, 10, 15));
+                    introText.setOutlineThickness(4.0f);
+                    introText.setOrigin(sf::Vector2f(introText.getLocalBounds().size.x * 0.5f, introText.getLocalBounds().size.y * 0.5f));
+                    introText.setPosition(sf::Vector2f(800.0f, 365.0f));
+                    window.draw(introText);
+
+                    // Stage Presentation Banner
+                    sf::Text stageBanner(hudFont, stageRenderer.getStageName() + "  //  " + stageRenderer.getStageSubtitle(), 15);
+                    stageBanner.setStyle(sf::Text::Bold);
+                    stageBanner.setFillColor(stageRenderer.getStageThemeColor());
+                    stageBanner.setOutlineColor(sf::Color(10, 10, 15));
+                    stageBanner.setOutlineThickness(2.5f);
+                    stageBanner.setOrigin(sf::Vector2f(stageBanner.getLocalBounds().size.x * 0.5f, 0.0f));
+                    stageBanner.setPosition(sf::Vector2f(800.0f, 415.0f));
+                    window.draw(stageBanner);
+                } else if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
+                    std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS!") : (p2.getName() + " WINS!");
+                    sf::Text winText(hudFont, winnerStr, 52);
+                    winText.setStyle(sf::Text::Bold);
+                    winText.setFillColor(combatManager.getRoundWinner() == 1 ? p1.getCharacterDef().accentColor : p2.getCharacterDef().accentColor);
+                    winText.setOutlineColor(sf::Color(10, 10, 15));
+                    winText.setOutlineThickness(4.0f);
+                    winText.setOrigin(sf::Vector2f(winText.getLocalBounds().size.x * 0.5f, winText.getLocalBounds().size.y * 0.5f));
+                    winText.setPosition(sf::Vector2f(800.0f, 370.0f));
+                    window.draw(winText);
+
+                    // 4 Interactive Action Buttons
+                    sf::Vector2i mPix = sf::Mouse::getPosition(window);
+                    sf::Vector2f mouseScreenPos(static_cast<float>(mPix.x), static_cast<float>(mPix.y));
+
+                    auto drawEndBtn = [&](float x, float y, float w, float h, const std::string& label, sf::Color col) {
+                        sf::FloatRect rect(sf::Vector2f(x, y), sf::Vector2f(w, h));
+                        bool hovered = rect.contains(mouseScreenPos);
+                        sf::RectangleShape b(sf::Vector2f(w, h));
+                        b.setPosition(sf::Vector2f(x, y));
+                        b.setFillColor(hovered ? sf::Color(32, 44, 62, 245) : sf::Color(18, 22, 32, 235));
+                        b.setOutlineColor(hovered ? sf::Color::White : col);
+                        b.setOutlineThickness(hovered ? 3.0f : 2.0f);
+                        window.draw(b);
+
+                        sf::Text t(hudFont, label, 12);
+                        t.setStyle(sf::Text::Bold);
+                        t.setFillColor(hovered ? sf::Color(255, 235, 100) : sf::Color::White);
+                        t.setOrigin(sf::Vector2f(t.getLocalBounds().size.x * 0.5f, t.getLocalBounds().size.y * 0.5f + 3.0f));
+                        t.setPosition(sf::Vector2f(x + w * 0.5f, y + h * 0.5f));
+                        window.draw(t);
+                    };
+
+                    drawEndBtn(260.0f, 475.0f, 220.0f, 44.0f, "REMATCH [ENTER]", sf::Color(255, 215, 60));
+                    drawEndBtn(520.0f, 475.0f, 250.0f, 44.0f, "CHOOSE FIGHTERS [C]", sf::Color(45, 145, 255));
+                    drawEndBtn(810.0f, 475.0f, 220.0f, 44.0f, "CHANGE STAGE [S]", sf::Color(245, 55, 65));
+                    drawEndBtn(1070.0f, 475.0f, 220.0f, 44.0f, "MAIN MENU [ESC]", sf::Color(180, 195, 215));
+                }
+
+                // Bottom Quick Move Reference
+                std::string helpStr = (menuManager.getGameMode() == StickminGame::GameMode::Practice)
+                    ? "[R] Reset Fighters  |  [F3] Move List  |  [ESC] Pause Menu\n"
+                      "P1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\n"
+                      "Fwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back"
+                    : "[ESC] Pause  |  [F3] Move List  |  [TAB] Slow-Mo\n"
+                      "P1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\n"
+                      "P2: 1 (Num1), 2 (Num2), 3 (Num4), 4 (Num5) | 1+2: (Num3) | 1+3: Throw (Num6) | 3+4: (Num9)\n"
+                      "Fwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back";
+
+                sf::Text moveHelp(hudFont, helpStr, 12);
+                moveHelp.setFillColor(sf::Color(150, 165, 185));
+                moveHelp.setOrigin(sf::Vector2f(moveHelp.getLocalBounds().size.x * 0.5f, 0.0f));
+                moveHelp.setPosition(sf::Vector2f(800.0f, 835.0f));
+                window.draw(moveHelp);
             }
 
-            // P1 Nameplate & Title
-            sf::Text p1Name(hudFont, p1.getName(), 18);
-            p1Name.setStyle(sf::Text::Bold);
-            p1Name.setFillColor(p1.getCharacterDef().accentColor);
-            p1Name.setPosition(sf::Vector2f(90.0f, topY - 26.0f));
-            window.draw(p1Name);
-
-            // P1 RAGE Badge
-            if (p1.isInRage()) {
-                sf::RectangleShape p1RageBadge(sf::Vector2f(56.0f, 18.0f));
-                p1RageBadge.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 12.0f, topY - 24.0f));
-                p1RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
-                p1RageBadge.setOutlineColor(sf::Color(255, 225, 40));
-                p1RageBadge.setOutlineThickness(1.5f);
-                window.draw(p1RageBadge);
-
-                sf::Text p1RageText(hudFont, "RAGE", 11);
-                p1RageText.setStyle(sf::Text::Bold);
-                p1RageText.setFillColor(sf::Color(255, 245, 100));
-                p1RageText.setPosition(sf::Vector2f(90.0f + p1Name.getLocalBounds().size.x + 23.0f, topY - 23.0f));
-                window.draw(p1RageText);
+            // If Pause Menu or Command List is active during battle, draw on top!
+            if (menuManager.getState() == StickminGame::MenuState::PauseMenu ||
+                menuManager.getState() == StickminGame::MenuState::CommandListModal) {
+                window.setView(window.getDefaultView());
+                menuManager.draw(window);
             }
-
-            // P1 Victory Gems
-            for (int r = 0; r < 2; ++r) {
-                sf::CircleShape gem(6.0f);
-                gem.setOrigin(sf::Vector2f(6.0f, 6.0f));
-                gem.setPosition(sf::Vector2f(620.0f - r * 20.0f, topY + barHeight + 14.0f));
-                gem.setFillColor(r < p1.getRoundsWon() ? sf::Color(255, 215, 0) : sf::Color(40, 45, 55));
-                gem.setOutlineColor(sf::Color(255, 255, 255, 160));
-                gem.setOutlineThickness(1.5f);
-                window.draw(gem);
-            }
-
-            // --- P2 HEALTH BAR (Top Right) ---
-            // Background slot with Tekken 7 Rage pulse
-            sf::RectangleShape p2Bg(sf::Vector2f(barWidth, barHeight));
-            p2Bg.setPosition(sf::Vector2f(950.0f, topY));
-            p2Bg.setFillColor(sf::Color(25, 28, 36, 230));
-            if (p2.isInRage()) {
-                p2Bg.setOutlineColor(sf::Color(255, 30 + static_cast<std::uint8_t>(50 * ragePulse), 30));
-                p2Bg.setOutlineThickness(3.5f);
-            } else {
-                p2Bg.setOutlineColor(sf::Color(80, 90, 110));
-                p2Bg.setOutlineThickness(2.0f);
-            }
-            window.draw(p2Bg);
-
-            // Ghost Lag Bar
-            float p2GhostWidth = (p2.getGhostHealth() / p2.getMaxHealth()) * barWidth;
-            if (p2GhostWidth > 0.0f) {
-                sf::RectangleShape p2Ghost(sf::Vector2f(p2GhostWidth, barHeight));
-                p2Ghost.setPosition(sf::Vector2f(950.0f, topY)); // Drains toward center
-                p2Ghost.setFillColor(sf::Color(255, 200, 50, 220));
-                window.draw(p2Ghost);
-            }
-
-            // Current Health Bar (Dynamic character accent color)
-            float p2CurWidth = (p2.getHealth() / p2.getMaxHealth()) * barWidth;
-            if (p2CurWidth > 0.0f) {
-                sf::RectangleShape p2Fill(sf::Vector2f(p2CurWidth, barHeight));
-                p2Fill.setPosition(sf::Vector2f(950.0f, topY));
-                p2Fill.setFillColor(p2.getCharacterDef().accentColor);
-                window.draw(p2Fill);
-            }
-
-            // P2 Nameplate & Title
-            sf::Text p2Name(hudFont, p2.getName(), 18);
-            p2Name.setStyle(sf::Text::Bold);
-            p2Name.setFillColor(p2.getCharacterDef().accentColor);
-            p2Name.setOrigin(sf::Vector2f(p2Name.getLocalBounds().size.x, 0.0f));
-            p2Name.setPosition(sf::Vector2f(1510.0f, topY - 26.0f));
-            window.draw(p2Name);
-
-            // P2 RAGE Badge
-            if (p2.isInRage()) {
-                sf::RectangleShape p2RageBadge(sf::Vector2f(56.0f, 18.0f));
-                p2RageBadge.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 68.0f, topY - 24.0f));
-                p2RageBadge.setFillColor(sf::Color(190, 25, 25, 240));
-                p2RageBadge.setOutlineColor(sf::Color(255, 225, 40));
-                p2RageBadge.setOutlineThickness(1.5f);
-                window.draw(p2RageBadge);
-
-                sf::Text p2RageText(hudFont, "RAGE", 11);
-                p2RageText.setStyle(sf::Text::Bold);
-                p2RageText.setFillColor(sf::Color(255, 245, 100));
-                p2RageText.setPosition(sf::Vector2f(1510.0f - p2Name.getLocalBounds().size.x - 57.0f, topY - 23.0f));
-                window.draw(p2RageText);
-            }
-
-            // P2 Victory Gems
-            for (int r = 0; r < 2; ++r) {
-                sf::CircleShape gem(6.0f);
-                gem.setOrigin(sf::Vector2f(6.0f, 6.0f));
-                gem.setPosition(sf::Vector2f(980.0f + r * 20.0f, topY + barHeight + 14.0f));
-                gem.setFillColor(r < p2.getRoundsWon() ? sf::Color(255, 215, 0) : sf::Color(40, 45, 55));
-                gem.setOutlineColor(sf::Color(255, 255, 255, 160));
-                gem.setOutlineThickness(1.5f);
-                window.draw(gem);
-            }
-
-            // --- ROUND TIMER (Top Center) ---
-            sf::RectangleShape timerFrame(sf::Vector2f(110.0f, 64.0f));
-            timerFrame.setOrigin(sf::Vector2f(55.0f, 32.0f));
-            timerFrame.setPosition(sf::Vector2f(800.0f, topY + barHeight * 0.5f));
-            timerFrame.setFillColor(sf::Color(16, 18, 24, 240));
-            timerFrame.setOutlineColor(sf::Color(180, 190, 215));
-            timerFrame.setOutlineThickness(2.5f);
-            window.draw(timerFrame);
-
-            int sec = static_cast<int>(std::ceil(combatManager.getRoundTimer()));
-            sf::Text timerText(hudFont, std::to_string(sec), 32);
-            timerText.setStyle(sf::Text::Bold);
-            timerText.setFillColor(sec <= 10 ? sf::Color(255, 60, 60) : sf::Color(245, 245, 250));
-            timerText.setOrigin(sf::Vector2f(timerText.getLocalBounds().size.x * 0.5f, timerText.getLocalBounds().size.y * 0.5f + 4.0f));
-            timerText.setPosition(sf::Vector2f(800.0f, topY + barHeight * 0.5f));
-            window.draw(timerText);
-
-            // Round Number Banner
-            sf::Text roundSub(hudFont, "ROUND " + std::to_string(combatManager.getRoundNumber()), 11);
-            roundSub.setStyle(sf::Text::Bold);
-            roundSub.setFillColor(sf::Color(160, 175, 200));
-            roundSub.setOrigin(sf::Vector2f(roundSub.getLocalBounds().size.x * 0.5f, 0.0f));
-            roundSub.setPosition(sf::Vector2f(800.0f, topY + barHeight + 12.0f));
-            window.draw(roundSub);
-
-            // --- P1 DYNAMIC COMBO DISPLAY ---
-            if (p1.getComboHits() > 1) {
-                sf::Text p1ComboHits(hudFont, std::to_string(p1.getComboHits()) + " HITS!", 38);
-                p1ComboHits.setStyle(sf::Text::Bold);
-                p1ComboHits.setFillColor(sf::Color(60, 160, 255));
-                p1ComboHits.setOutlineColor(sf::Color::Black);
-                p1ComboHits.setOutlineThickness(3.0f);
-                p1ComboHits.setPosition(sf::Vector2f(90.0f, 150.0f));
-                window.draw(p1ComboHits);
-
-                sf::Text p1ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p1.getComboDamage())), 18);
-                p1ComboDmg.setStyle(sf::Text::Bold);
-                p1ComboDmg.setFillColor(sf::Color(255, 220, 60));
-                p1ComboDmg.setPosition(sf::Vector2f(92.0f, 200.0f));
-                window.draw(p1ComboDmg);
-            }
-
-            // --- P2 DYNAMIC COMBO DISPLAY ---
-            if (p2.getComboHits() > 1) {
-                sf::Text p2ComboHits(hudFont, std::to_string(p2.getComboHits()) + " HITS!", 38);
-                p2ComboHits.setStyle(sf::Text::Bold);
-                p2ComboHits.setFillColor(sf::Color(255, 60, 80));
-                p2ComboHits.setOutlineColor(sf::Color::Black);
-                p2ComboHits.setOutlineThickness(3.0f);
-                p2ComboHits.setOrigin(sf::Vector2f(p2ComboHits.getLocalBounds().size.x, 0.0f));
-                p2ComboHits.setPosition(sf::Vector2f(1510.0f, 150.0f));
-                window.draw(p2ComboHits);
-
-                sf::Text p2ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p2.getComboDamage())), 18);
-                p2ComboDmg.setStyle(sf::Text::Bold);
-                p2ComboDmg.setFillColor(sf::Color(255, 220, 60));
-                p2ComboDmg.setOrigin(sf::Vector2f(p2ComboDmg.getLocalBounds().size.x, 0.0f));
-                p2ComboDmg.setPosition(sf::Vector2f(1508.0f, 200.0f));
-                window.draw(p2ComboDmg);
-            }
-
-            // --- ROUND INTRO & MATCH OVER BANNERS ---
-            if (combatManager.getState() == StickminGame::MatchState::RoundIntro) {
-                sf::Text introText(hudFont, "ROUND " + std::to_string(combatManager.getRoundNumber()) + " // FIGHT!", 54);
-                introText.setStyle(sf::Text::Bold);
-                introText.setFillColor(sf::Color(255, 235, 60));
-                introText.setOutlineColor(sf::Color(10, 10, 15));
-                introText.setOutlineThickness(4.0f);
-                introText.setOrigin(sf::Vector2f(introText.getLocalBounds().size.x * 0.5f, introText.getLocalBounds().size.y * 0.5f));
-                introText.setPosition(sf::Vector2f(800.0f, 365.0f));
-                window.draw(introText);
-
-                // Stage Presentation Banner
-                sf::Text stageBanner(hudFont, stageRenderer.getStageName() + "  //  " + stageRenderer.getStageSubtitle(), 15);
-                stageBanner.setStyle(sf::Text::Bold);
-                stageBanner.setFillColor(stageRenderer.getStageThemeColor());
-                stageBanner.setOutlineColor(sf::Color(10, 10, 15));
-                stageBanner.setOutlineThickness(2.5f);
-                stageBanner.setOrigin(sf::Vector2f(stageBanner.getLocalBounds().size.x * 0.5f, 0.0f));
-                stageBanner.setPosition(sf::Vector2f(800.0f, 415.0f));
-                window.draw(stageBanner);
-            } else if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
-                std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS!") : (p2.getName() + " WINS!");
-                sf::Text winText(hudFont, winnerStr, 52);
-                winText.setStyle(sf::Text::Bold);
-                winText.setFillColor(combatManager.getRoundWinner() == 1 ? p1.getCharacterDef().accentColor : p2.getCharacterDef().accentColor);
-                winText.setOutlineColor(sf::Color(10, 10, 15));
-                winText.setOutlineThickness(4.0f);
-                winText.setOrigin(sf::Vector2f(winText.getLocalBounds().size.x * 0.5f, winText.getLocalBounds().size.y * 0.5f));
-                winText.setPosition(sf::Vector2f(800.0f, 370.0f));
-                window.draw(winText);
-
-                sf::Text pressRText(hudFont, "PRESS [ENTER] OR [B] FOR REMATCH", 20);
-                pressRText.setStyle(sf::Text::Bold);
-                pressRText.setFillColor(sf::Color(255, 255, 255, 210));
-                pressRText.setOrigin(sf::Vector2f(pressRText.getLocalBounds().size.x * 0.5f, 0.0f));
-                pressRText.setPosition(sf::Vector2f(800.0f, 420.0f));
-                window.draw(pressRText);
-            }
-
-            // Bottom Quick Move Reference
-            sf::Text moveHelp(hudFont, "F1/F2: Cycle Character | F5: Cycle Stage Arena | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\nP2: 1 (Num1), 2 (Num2), 3 (Num4), 4 (Num5) | 1+2: (Num3) | 1+3: Throw (Num6) | 3+4: (Num9)\nFwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back", 12);
-            moveHelp.setFillColor(sf::Color(150, 165, 185));
-            moveHelp.setOrigin(sf::Vector2f(moveHelp.getLocalBounds().size.x * 0.5f, 0.0f));
-            moveHelp.setPosition(sf::Vector2f(800.0f, 842.0f));
-            window.draw(moveHelp);
+        } else if (menuManager.getState() == StickminGame::MenuState::StageSelect) {
+            window.setView(window.getDefaultView());
+            stageRenderer.drawBackground(window, window.getDefaultView());
+            stageRenderer.drawAtmosphereAndLighting(window, window.getDefaultView());
+            menuManager.draw(window);
+        } else {
+            window.setView(window.getDefaultView());
+            menuManager.draw(window);
         }
 
         window.display();

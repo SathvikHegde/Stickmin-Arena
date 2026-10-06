@@ -13,6 +13,7 @@ public:
 
     void draw(sf::RenderWindow& window, const RagdollSkeleton& skeleton, int facingDir, const CharacterDefinition& character);
     void drawDropShadow(sf::RenderWindow& window, const RagdollSkeleton& skeleton, float groundY = 800.0f);
+    void drawPortrait(sf::RenderWindow& window, const sf::Vector2f& pos, float radius, int facingDir, const CharacterDefinition& character);
 
 private:
     void drawLimbSegment(sf::RenderWindow& window, b2BodyId body, float halfWidthPixels, float halfHeightPixels, const sf::Color& color);
