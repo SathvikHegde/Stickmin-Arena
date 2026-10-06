@@ -24,9 +24,9 @@ RagdollPose RagdollPose::makeIdleGuard(int facingDir, float breathePhase) {
     p.setRearArm(facingDir, -8.0f * facingDir, -88.0f * facingDir);
 
     // SOLID CENTERED ATHLETIC BASE:
-    // Feet naturally close together directly under hips
-    p.setFrontLeg(facingDir, 3.0f * facingDir, 3.0f * facingDir);
-    p.setRearLeg(facingDir, -2.0f * facingDir, -2.0f * facingDir);
+    // Symmetrical foot stance directly under hips to eliminate any horizontal drift
+    p.setFrontLeg(facingDir, 0.0f, 4.0f * facingDir);
+    p.setRearLeg(facingDir, 0.0f, 4.0f * facingDir);
 
     return p;
 }
@@ -40,22 +40,23 @@ RagdollPose RagdollPose::makeHighGuard(int facingDir) {
     p.setFrontArm(facingDir, -50.0f * facingDir, -105.0f * facingDir);
     p.setRearArm(facingDir, -35.0f * facingDir, -115.0f * facingDir);
 
-    p.setFrontLeg(facingDir, 3.0f * facingDir, 3.0f * facingDir);
-    p.setRearLeg(facingDir, -2.0f * facingDir, -2.0f * facingDir);
+    p.setFrontLeg(facingDir, 0.0f, 4.0f * facingDir);
+    p.setRearLeg(facingDir, 0.0f, 4.0f * facingDir);
     return p;
 }
 
 RagdollPose RagdollPose::makeLowGuard(int facingDir) {
     RagdollPose p;
     p.neck = 4.0f;
-    p.spine = 10.0f * facingDir;
+    p.spine = 8.0f * facingDir;
 
     // Deep crouch with low arm cover
     p.setFrontArm(facingDir, -18.0f * facingDir, -35.0f * facingDir);
     p.setRearArm(facingDir, -25.0f * facingDir, -80.0f * facingDir);
 
-    p.setFrontLeg(facingDir, 14.0f * facingDir, 28.0f * facingDir);
-    p.setRearLeg(facingDir, -10.0f * facingDir, 28.0f * facingDir);
+    // Symmetrical crouch leg stance
+    p.setFrontLeg(facingDir, 8.0f * facingDir, 32.0f * facingDir);
+    p.setRearLeg(facingDir, -8.0f * facingDir, 32.0f * facingDir);
     return p;
 }
 
@@ -1126,13 +1127,45 @@ void ActiveRagdollController::applyLocomotionAndSuspension(float dt) {
     float currentVx = b2Body_GetLinearVelocity(hips).x;
     bool isMoving = (std::abs(targetVx) > 0.1f);
     // When moving: drive towards targetVx. When neutral: actively brake currentVx to 0 to eliminate ice-skating!
-    float kDrive = isMoving ? 75.0f : 110.0f;
+    float kDrive = isMoving ? 75.0f : 120.0f;
     float forceX = (targetVx - currentVx) * kDrive;
-    forceX = std::clamp(forceX, -220.0f, 220.0f);
+    forceX = std::clamp(forceX, -240.0f, 240.0f);
 
     b2Body_ApplyForceToCenter(hips, b2Vec2{ forceX * 0.55f, 0.0f }, true);
     if (b2Body_IsValid(torso)) {
         b2Body_ApplyForceToCenter(torso, b2Vec2{ forceX * 0.45f, 0.0f }, true);
+    }
+
+    // Active damping when standing idle/guarding to completely prevent creeping/drifting
+    if (!isMoving && (m_actionState == FighterActionState::Neutral ||
+                      m_actionState == FighterActionState::Crouching ||
+                      m_actionState == FighterActionState::HighGuarding ||
+                      m_actionState == FighterActionState::LowGuarding)) {
+        auto dampVx = [](b2BodyId body, float dampFactor, float snapThreshold) {
+            if (b2Body_IsValid(body)) {
+                b2Vec2 v = b2Body_GetLinearVelocity(body);
+                if (std::abs(v.x) < snapThreshold) {
+                    v.x = 0.0f;
+                } else {
+                    v.x *= dampFactor;
+                }
+                b2Body_SetLinearVelocity(body, v);
+            }
+        };
+
+        // Aggressively damp and snap horizontal velocity of hips, torso, and legs
+        dampVx(hips, 0.65f, 0.35f);
+        if (b2Body_IsValid(torso)) {
+            dampVx(torso, 0.65f, 0.35f);
+        }
+        b2BodyId leftShin = m_skeleton->getBody(LimbType::LeftShin);
+        b2BodyId rightShin = m_skeleton->getBody(LimbType::RightShin);
+        b2BodyId leftThigh = m_skeleton->getBody(LimbType::LeftThigh);
+        b2BodyId rightThigh = m_skeleton->getBody(LimbType::RightThigh);
+        dampVx(leftShin, 0.60f, 0.35f);
+        dampVx(rightShin, 0.60f, 0.35f);
+        dampVx(leftThigh, 0.60f, 0.35f);
+        dampVx(rightThigh, 0.60f, 0.35f);
     }
 }
 

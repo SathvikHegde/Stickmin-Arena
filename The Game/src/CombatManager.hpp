@@ -86,7 +86,7 @@ public:
 
                 // Super dramatic KO slow-mo & camera zoom!
                 timeManager.triggerSlowMo(0.08f, 2.2f);
-                camera.triggerCinematicZoom(0.62f, 2.2f, (p1Pos.x < p2Pos.x ? -3.0f : 3.0f));
+                camera.triggerCinematicZoom(0.32f, 2.2f, (p1Pos.x < p2Pos.x ? -3.0f : 3.0f));
                 camera.addTrauma(0.85f);
                 juiceFX.triggerScreenFlash(0.16f, sf::Color(255, 255, 255, 175));
                 sf::Vector2f koCenter = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -40.0f);
@@ -109,9 +109,9 @@ public:
                 if (m_p1->getRoundsWon() >= 2 || m_p2->getRoundsWon() >= 2) {
                     m_state = MatchState::MatchOver;
                 } else {
-                    // Next round
-                    m_p1->respawn(sf::Vector2f(550.0f, 735.0f));
-                    m_p2->respawn(sf::Vector2f(1050.0f, 735.0f));
+                    // Next round (Tekken starting distance)
+                    m_p1->respawn(sf::Vector2f(650.0f, 735.0f));
+                    m_p2->respawn(sf::Vector2f(950.0f, 735.0f));
                     startRound(m_roundNumber + 1);
                 }
             }
@@ -153,7 +153,7 @@ private:
                 m_clashCooldown = 2.5f;
 
                 timeManager.triggerSlowMo(0.08f, 1.1f);
-                camera.triggerCinematicZoom(0.65f, 1.1f, (p1Pos.x < p2Pos.x ? -3.5f : 3.5f));
+                camera.triggerCinematicZoom(0.34f, 1.1f, (p1Pos.x < p2Pos.x ? -3.5f : 3.5f));
                 camera.addTrauma(0.40f);
 
                 sf::Vector2f mid = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -50.0f);
@@ -250,7 +250,7 @@ private:
                     attacker.setRageArtUsed(true);
                     juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -50.0f), "RAGE ART!", sf::Color(255, 30, 30), 2.2f);
                     juiceFX.triggerScreenFlash(0.20f, sf::Color(255, 40, 40, 180));
-                    camera.triggerCinematicZoom(0.50f, 1.8f, 0.0f);
+                    camera.triggerCinematicZoom(0.28f, 1.8f, 0.0f);
                     timeManager.triggerSlowMo(0.06f, 1.6f);
                     camera.addTrauma(0.95f);
                 }

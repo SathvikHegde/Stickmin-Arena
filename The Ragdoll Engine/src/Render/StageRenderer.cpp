@@ -719,9 +719,31 @@ void StageRenderer::drawAirshipPlatforms(sf::RenderWindow& window, const std::ve
         rect.setOutlineThickness(2.2f);
         window.draw(rect);
 
-        // 2. Hazard Caution Warning Stripes on Top Ledge (Toppat industrial safety)
+        // 2. Floor Ring & Top Ledge (Toppat industrial safety)
         if (!isWall) {
             float topY = plat.positionPixels.y - plat.heightPixels * 0.5f;
+
+            // Center Ring Octagon / Circle in perspective
+            if (isFloor) {
+                sf::CircleShape ring(90.0f);
+                ring.setScale(sf::Vector2f(1.0f, 0.26f)); // Perspective floor ring
+                ring.setOrigin(sf::Vector2f(90.0f, 90.0f));
+                ring.setPosition(sf::Vector2f(plat.positionPixels.x, topY + 8.0f));
+                ring.setFillColor(sf::Color::Transparent);
+                ring.setOutlineColor(sf::Color(245, 195, 35, 140)); // Golden Toppat ring
+                ring.setOutlineThickness(3.0f);
+                window.draw(ring);
+
+                sf::CircleShape innerRing(45.0f);
+                innerRing.setScale(sf::Vector2f(1.0f, 0.26f));
+                innerRing.setOrigin(sf::Vector2f(45.0f, 45.0f));
+                innerRing.setPosition(sf::Vector2f(plat.positionPixels.x, topY + 8.0f));
+                innerRing.setFillColor(sf::Color(165, 24, 38, 90)); // Crimson center
+                innerRing.setOutlineColor(sf::Color(245, 195, 35, 170));
+                innerRing.setOutlineThickness(2.0f);
+                window.draw(innerRing);
+            }
+
             float stripeWidth = 16.0f;
             int numStripes = static_cast<int>(plat.widthPixels / stripeWidth);
 
@@ -740,7 +762,7 @@ void StageRenderer::drawAirshipPlatforms(sf::RenderWindow& window, const std::ve
             window.draw(conduit);
         } else {
             // Bulkhead rivets on arena walls
-            for (float ry = plat.positionPixels.y - plat.heightPixels * 0.45f; ry < plat.positionPixels.y + plat.heightPixels * 0.45f; ry += 60.0f) {
+            for (float ry = plat.positionPixels.y - plat.heightPixels * 0.45f; ry < plat.positionPixels.y + plat.heightPixels * 0.45f; ry += 50.0f) {
                 sf::CircleShape rivet(3.0f);
                 rivet.setOrigin(sf::Vector2f(3.0f, 3.0f));
                 rivet.setPosition(sf::Vector2f(plat.positionPixels.x, ry));
@@ -754,6 +776,7 @@ void StageRenderer::drawAirshipPlatforms(sf::RenderWindow& window, const std::ve
 void StageRenderer::drawTheWallPlatforms(sf::RenderWindow& window, const std::vector<StaticPlatform>& platforms) {
     for (const auto& plat : platforms) {
         bool isWall = (plat.heightPixels > 200.0f);
+        bool isFloor = (plat.widthPixels > 1000.0f);
 
         // 1. Reinforced Weathered Concrete Body
         sf::RectangleShape rect(sf::Vector2f(plat.widthPixels, plat.heightPixels));
@@ -764,9 +787,19 @@ void StageRenderer::drawTheWallPlatforms(sf::RenderWindow& window, const std::ve
         rect.setOutlineThickness(2.5f);
         window.draw(rect);
 
-        // 2. Thick Snow Cap on Top Surfaces
+        // 2. Thick Snow Cap & Prison Yard Boundary Line
         if (!isWall) {
             float topY = plat.positionPixels.y - plat.heightPixels * 0.5f;
+
+            if (isFloor) {
+                // Red Painted Prison Yard Limit Line in perspective
+                sf::RectangleShape redLine(sf::Vector2f(plat.widthPixels - 120.0f, 3.5f));
+                redLine.setOrigin(sf::Vector2f((plat.widthPixels - 120.0f) * 0.5f, 1.75f));
+                redLine.setPosition(sf::Vector2f(plat.positionPixels.x, topY + 7.0f));
+                redLine.setFillColor(sf::Color(210, 40, 40, 160));
+                window.draw(redLine);
+            }
+
             sf::RectangleShape snow(sf::Vector2f(plat.widthPixels + 4.0f, 6.0f));
             snow.setOrigin(sf::Vector2f((plat.widthPixels + 4.0f) * 0.5f, 5.0f));
             snow.setPosition(sf::Vector2f(plat.positionPixels.x, topY));
@@ -774,22 +807,6 @@ void StageRenderer::drawTheWallPlatforms(sf::RenderWindow& window, const std::ve
             snow.setOutlineColor(sf::Color(180, 195, 215));
             snow.setOutlineThickness(1.0f);
             window.draw(snow);
-
-            // Dangling Icicles underneath floating platforms
-            if (plat.widthPixels < 600.0f) {
-                int icicleCount = static_cast<int>(plat.widthPixels / 28.0f);
-                for (int ic = 0; ic < icicleCount; ++ic) {
-                    float icX = plat.positionPixels.x - plat.widthPixels * 0.45f + ic * 28.0f;
-                    float icLen = 8.0f + std::abs(std::sin(ic * 2.3f)) * 14.0f;
-                    sf::ConvexShape icicle;
-                    icicle.setPointCount(3);
-                    icicle.setPoint(0, sf::Vector2f(icX - 3.5f, plat.positionPixels.y + plat.heightPixels * 0.5f));
-                    icicle.setPoint(1, sf::Vector2f(icX + 3.5f, plat.positionPixels.y + plat.heightPixels * 0.5f));
-                    icicle.setPoint(2, sf::Vector2f(icX, plat.positionPixels.y + plat.heightPixels * 0.5f + icLen));
-                    icicle.setFillColor(sf::Color(200, 225, 250, 210));
-                    window.draw(icicle);
-                }
-            }
         } else {
             // Prison guard floodlights mounted on arena side walls
             sf::CircleShape lamp(8.0f);
@@ -806,6 +823,7 @@ void StageRenderer::drawTheWallPlatforms(sf::RenderWindow& window, const std::ve
 void StageRenderer::drawBankVaultPlatforms(sf::RenderWindow& window, const std::vector<StaticPlatform>& platforms) {
     for (const auto& plat : platforms) {
         bool isWall = (plat.heightPixels > 200.0f);
+        bool isFloor = (plat.widthPixels > 1000.0f);
 
         // 1. Weathered Desert Sandstone / Heavy Steel Vault Slabs
         sf::RectangleShape rect(sf::Vector2f(plat.widthPixels, plat.heightPixels));
@@ -819,32 +837,24 @@ void StageRenderer::drawBankVaultPlatforms(sf::RenderWindow& window, const std::
         // 2. Polished Brass / Gold Trim on Top Ledges
         if (!isWall) {
             float topY = plat.positionPixels.y - plat.heightPixels * 0.5f;
+
+            if (isFloor) {
+                // Bank Vault Yellow Safety Clearance Ring
+                sf::CircleShape vaultRing(85.0f);
+                vaultRing.setScale(sf::Vector2f(1.0f, 0.26f));
+                vaultRing.setOrigin(sf::Vector2f(85.0f, 85.0f));
+                vaultRing.setPosition(sf::Vector2f(plat.positionPixels.x, topY + 8.0f));
+                vaultRing.setFillColor(sf::Color::Transparent);
+                vaultRing.setOutlineColor(sf::Color(255, 215, 0, 150));
+                vaultRing.setOutlineThickness(3.0f);
+                window.draw(vaultRing);
+            }
+
             sf::RectangleShape trim(sf::Vector2f(plat.widthPixels, 3.5f));
             trim.setOrigin(sf::Vector2f(plat.widthPixels * 0.5f, 1.75f));
             trim.setPosition(sf::Vector2f(plat.positionPixels.x, topY));
             trim.setFillColor(sf::Color(235, 180, 50));
             window.draw(trim);
-
-            // Stacks of cash & money bags with "$" signs on floating platforms
-            if (plat.widthPixels < 600.0f) {
-                // Burlap Money Bag
-                float bagX = plat.positionPixels.x + plat.widthPixels * 0.35f;
-                float bagY = topY - 10.0f;
-                sf::CircleShape bag(10.0f);
-                bag.setOrigin(sf::Vector2f(10.0f, 10.0f));
-                bag.setPosition(sf::Vector2f(bagX, bagY));
-                bag.setFillColor(sf::Color(190, 165, 120)); // Burlap tan
-                bag.setOutlineColor(sf::Color(70, 55, 35));
-                bag.setOutlineThickness(1.5f);
-                window.draw(bag);
-
-                // Tied knot
-                sf::CircleShape knot(3.5f);
-                knot.setOrigin(sf::Vector2f(3.5f, 3.5f));
-                knot.setPosition(sf::Vector2f(bagX, bagY - 11.0f));
-                knot.setFillColor(sf::Color(160, 135, 95));
-                window.draw(knot);
-            }
         }
     }
 }

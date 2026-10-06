@@ -31,7 +31,7 @@ int main() {
     // 2. Initialize Engine Subsystems
     RagdollEngine::TimeManager timeManager;
     RagdollEngine::CameraDirector camera(1600.0f, 900.0f);
-    camera.setZoomLimits(0.60f, 1.30f);
+    camera.setZoomLimits(0.42f, 1.05f); // Close, punchy Tekken framing with full arena coverage
 
     RagdollEngine::PhysicsWorld physicsWorld(19.0f); // Balanced gravity
     RagdollEngine::RagdollRenderer ragdollRenderer;
@@ -46,29 +46,23 @@ int main() {
         juiceFX.setFont(&hudFont);
     }
 
-    // 3. Build Arena Geometry
+    // 3. Build Arena Geometry (Tekken-style flat combat arena with left & right boundary walls)
     // Floor
     physicsWorld.createStaticBox(800.0f, 820.0f, 1500.0f, 40.0f, 0.95f);
-    // Left & Right Arena Walls
+    // Left & Right Arena Walls (Wall Splats)
     physicsWorld.createStaticBox(60.0f, 450.0f, 40.0f, 800.0f, 0.2f);
     physicsWorld.createStaticBox(1540.0f, 450.0f, 40.0f, 800.0f, 0.2f);
-    // Floating Platforms
-    physicsWorld.createStaticBox(450.0f, 620.0f, 260.0f, 20.0f, 0.85f);
-    physicsWorld.createStaticBox(1150.0f, 620.0f, 260.0f, 20.0f, 0.85f);
-    physicsWorld.createStaticBox(800.0f, 480.0f, 220.0f, 20.0f, 0.85f);
 
-    // Dynamic props (crates to smash around)
+    // Dynamic props (empty on combat plane to maintain pure Tekken fighting flow)
     std::vector<b2BodyId> props;
-    props.push_back(physicsWorld.createDynamicBox(760.0f, 420.0f, 28.0f, 28.0f, 1.2f, 0.6f));
-    props.push_back(physicsWorld.createDynamicBox(840.0f, 420.0f, 28.0f, 28.0f, 1.2f, 0.6f));
 
-    // 4. Spawn Fighters from CharacterRegistry
+    // 4. Spawn Fighters from CharacterRegistry (Starting at Tekken face-off distance)
     const auto& roster = RagdollEngine::CharacterRegistry::getAllRosterCharacters();
     size_t p1CharIdx = 0; // Henry Stickmin
     size_t p2CharIdx = 1; // Ellie Rose
 
-    StickminGame::Fighter p1(physicsWorld.getB2WorldId(), 1, roster[p1CharIdx], sf::Vector2f(550.0f, 735.0f));
-    StickminGame::Fighter p2(physicsWorld.getB2WorldId(), 2, roster[p2CharIdx], sf::Vector2f(1050.0f, 735.0f));
+    StickminGame::Fighter p1(physicsWorld.getB2WorldId(), 1, roster[p1CharIdx], sf::Vector2f(650.0f, 735.0f));
+    StickminGame::Fighter p2(physicsWorld.getB2WorldId(), 2, roster[p2CharIdx], sf::Vector2f(950.0f, 735.0f));
 
     StickminGame::CombatManager combatManager(&p1, &p2);
     combatManager.startRound(1);
@@ -158,8 +152,8 @@ int main() {
 
                 // Rematch / Reset
                 if (keyPressed->code == sf::Keyboard::Key::B || keyPressed->code == sf::Keyboard::Key::Enter) {
-                    p1.respawn(sf::Vector2f(550.0f, 735.0f));
-                    p2.respawn(sf::Vector2f(1050.0f, 735.0f));
+                    p1.respawn(sf::Vector2f(650.0f, 735.0f));
+                    p2.respawn(sf::Vector2f(950.0f, 735.0f));
                     p1.resetRoundsWon();
                     p2.resetRoundsWon();
                     combatManager.startRound(1);

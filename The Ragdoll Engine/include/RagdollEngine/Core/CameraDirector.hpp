@@ -38,10 +38,10 @@ private:
     sf::Vector2f m_currentCenter;
     sf::Vector2f m_targetCenter;
 
-    float m_currentZoom{ 1.0f };
-    float m_targetZoom{ 1.0f };
-    float m_minZoom{ 0.6f };  // Close up
-    float m_maxZoom{ 1.6f };  // Far wide
+    float m_currentZoom{ 0.46f };
+    float m_targetZoom{ 0.46f };
+    float m_minZoom{ 0.42f };  // Close up (Tekken tight framing)
+    float m_maxZoom{ 1.05f };  // Far wide (keeps fighters in view even at opposite walls)
 
     // Cinematic Overrides
     float m_cinematicTimer{ 0.0f };

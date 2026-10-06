@@ -32,7 +32,7 @@ float CameraDirector::getRandomFloat(float min, float max) {
 }
 
 void CameraDirector::triggerCinematicZoom(float targetZoom, float durationSeconds, float tiltAngleDeg) {
-    m_cinematicZoom = std::clamp(targetZoom, m_minZoom, m_maxZoom);
+    m_cinematicZoom = std::clamp(targetZoom, 0.22f, m_maxZoom);
     m_cinematicDuration = durationSeconds;
     m_cinematicTimer = durationSeconds;
     m_cinematicTilt = tiltAngleDeg;
@@ -53,17 +53,46 @@ void CameraDirector::update(float realDt) {
             maxY = std::max(maxY, pt.y);
         }
 
-        // Midpoint
-        m_targetCenter = sf::Vector2f((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+        // Horizontal midpoint
+        float midX = (minX + maxX) * 0.5f;
 
-        // Required span with safety padding
-        float spanX = (maxX - minX) + 400.0f;
-        float spanY = (maxY - minY) + 300.0f;
+        // Ground anchor: the floor is at Y = 800. Fighters stand at Y ~ 735.
+        // Base camera center Y is 710.0f, which places the floor in the lower ~25% of the viewport.
+        // High jumps smoothly pan the camera up proportionally without losing the floor.
+        float highestY = std::min(minY, 715.0f);
+        float jumpPan = (715.0f - highestY) * 0.40f;
+        float targetY = 710.0f - jumpPan;
 
-        float zoomX = spanX / m_viewportSize.x;
-        float zoomY = spanY / m_viewportSize.y;
-        m_targetZoom = std::max(zoomX, zoomY);
-        m_targetZoom = std::clamp(m_targetZoom, m_minZoom, m_maxZoom);
+        m_targetCenter = sf::Vector2f(midX, targetY);
+
+        // Dynamic Tekken zoom calculation to guarantee both fighters stay comfortably in frame:
+        // Horizontal span with 140px margin on each side (total +280px)
+        float spanX = (maxX - minX) + 280.0f;
+        // Vertical span with 120px margin above and below (total +240px)
+        float spanY = (maxY - minY) + 240.0f;
+
+        float requiredZoomX = spanX / m_viewportSize.x;
+        float requiredZoomY = spanY / m_viewportSize.y;
+        float desiredZoom = std::max(requiredZoomX, requiredZoomY);
+        m_targetZoom = std::clamp(desiredZoom, m_minZoom, m_maxZoom);
+
+        // Arena boundary soft clamp (arena walls are at X = 60 and X = 1540)
+        float halfW = m_viewportSize.x * m_targetZoom * 0.5f;
+        float minCamX = 60.0f + halfW;
+        float maxCamX = 1540.0f - halfW;
+        if (minCamX <= maxCamX) {
+            // View fits within arena: clamp camera center so we don't look past the walls,
+            // but ensure fighters never get pushed off screen.
+            float clampedX = std::clamp(midX, minCamX, maxCamX);
+            if (minX >= clampedX - halfW + 40.0f && maxX <= clampedX + halfW - 40.0f) {
+                m_targetCenter.x = clampedX;
+            } else {
+                m_targetCenter.x = midX;
+            }
+        } else {
+            // View is wider than arena: center on arena midpoint (800)
+            m_targetCenter.x = 800.0f;
+        }
     }
 
     // Process Cinematic Override
@@ -72,13 +101,13 @@ void CameraDirector::update(float realDt) {
     if (m_cinematicTimer > 0.0f) {
         m_cinematicTimer -= realDt;
         float progress = m_cinematicTimer / m_cinematicDuration;
-        desiredZoom = m_cinematicZoom * (1.0f - progress * 0.15f);
+        desiredZoom = m_cinematicZoom * (1.0f - progress * 0.12f);
         currentTilt = m_cinematicTilt * progress;
     }
 
     // 2. Smoothly interpolate position and zoom
-    float posLerp = (m_cinematicTimer > 0.0f ? 10.0f : 6.0f) * realDt;
-    float zoomLerp = (m_cinematicTimer > 0.0f ? 8.0f : 5.0f) * realDt;
+    float posLerp = (m_cinematicTimer > 0.0f ? 12.0f : 8.0f) * realDt;
+    float zoomLerp = (m_cinematicTimer > 0.0f ? 10.0f : 6.0f) * realDt;
     m_currentCenter.x += (m_targetCenter.x - m_currentCenter.x) * std::min(1.0f, posLerp);
     m_currentCenter.y += (m_targetCenter.y - m_currentCenter.y) * std::min(1.0f, posLerp);
     m_currentZoom += (desiredZoom - m_currentZoom) * std::min(1.0f, zoomLerp);
