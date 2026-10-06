@@ -12,6 +12,7 @@ add_library(RagdollEngine STATIC
     src/Render/RagdollRenderer.cpp
     src/Render/CharacterRegistry.cpp
     src/Render/JuiceFX.cpp
+    src/Render/StageRenderer.cpp
 )
 
 target_include_directories(RagdollEngine PUBLIC

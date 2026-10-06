@@ -3,6 +3,7 @@
 #include <RagdollEngine/Core/TimeManager.hpp>
 #include <RagdollEngine/Core/CameraDirector.hpp>
 #include <RagdollEngine/Render/JuiceFX.hpp>
+#include <RagdollEngine/Render/StageRenderer.hpp>
 #include <cmath>
 #include <algorithm>
 
@@ -28,7 +29,7 @@ public:
         m_clashCooldown = 0.0f;
     }
 
-    void update(float dt, RagdollEngine::TimeManager& timeManager, RagdollEngine::CameraDirector& camera, RagdollEngine::JuiceFX& juiceFX) {
+    void update(float dt, RagdollEngine::TimeManager& timeManager, RagdollEngine::CameraDirector& camera, RagdollEngine::JuiceFX& juiceFX, RagdollEngine::StageRenderer* stageRenderer = nullptr) {
         if (!m_p1 || !m_p2) return;
 
         sf::Vector2f p1Pos = m_p1->getSkeleton()->getPositionPixels();
@@ -100,8 +101,8 @@ public:
             }
 
             // 4. Hit Detection & Damage Resolution
-            processStrikes(*m_p1, *m_p2, timeManager, camera, juiceFX);
-            processStrikes(*m_p2, *m_p1, timeManager, camera, juiceFX);
+            processStrikes(*m_p1, *m_p2, timeManager, camera, juiceFX, stageRenderer);
+            processStrikes(*m_p2, *m_p1, timeManager, camera, juiceFX, stageRenderer);
         } else if (m_state == MatchState::RoundKO) {
             m_stateTimer -= dt;
             if (m_stateTimer <= 0.0f) {
@@ -162,7 +163,7 @@ private:
         }
     }
 
-    void processStrikes(Fighter& attacker, Fighter& defender, RagdollEngine::TimeManager& timeManager, RagdollEngine::CameraDirector& camera, RagdollEngine::JuiceFX& juiceFX) {
+    void processStrikes(Fighter& attacker, Fighter& defender, RagdollEngine::TimeManager& timeManager, RagdollEngine::CameraDirector& camera, RagdollEngine::JuiceFX& juiceFX, RagdollEngine::StageRenderer* stageRenderer = nullptr) {
         auto* atCtrl = attacker.getController();
         auto* defCtrl = defender.getController();
         if (!atCtrl->isAttackActive() || atCtrl->hasHitRegistered()) return;
@@ -263,6 +264,12 @@ private:
                     camera.addTrauma(0.65f);
                     timeManager.triggerHitstop(0.14f);
                     juiceFX.spawnImpact(defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), true);
+
+                    if (stageRenderer) {
+                        float wallX = (defPos.x < 800.0f) ? 60.0f : 1540.0f;
+                        stageRenderer->addWallCrack(sf::Vector2f(wallX, defPos.y), 1.25f);
+                        stageRenderer->spawnGroundDust(sf::Vector2f(wallX, defPos.y), sf::Vector2f((defPos.x < 800.0f ? 80.0f : -80.0f), -35.0f), 8);
+                    }
 
                     // Wall stick: stop horizontal velocity momentarily for wall combo follow-up
                     b2BodyId defHips = defender.getSkeleton()->getHips();

@@ -5,6 +5,7 @@
 #include <RagdollEngine/Physics/PhysicsUnits.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
 #include <RagdollEngine/Render/JuiceFX.hpp>
+#include <RagdollEngine/Render/StageRenderer.hpp>
 
 #include "Fighter.hpp"
 #include "CombatManager.hpp"
@@ -35,6 +36,7 @@ int main() {
     RagdollEngine::PhysicsWorld physicsWorld(19.0f); // Balanced gravity
     RagdollEngine::RagdollRenderer ragdollRenderer;
     RagdollEngine::JuiceFX juiceFX;
+    RagdollEngine::StageRenderer stageRenderer;
 
     // Load HUD Font
     sf::Font hudFont;
@@ -89,6 +91,7 @@ int main() {
     std::cout << " Roster: Henry, Ellie, Charles Calvin, Reginald, RHM!\n";
     std::cout << " [F1]: Cycle Player 1 Character\n";
     std::cout << " [F2]: Cycle Player 2 Character\n";
+    std::cout << " [F5]: Cycle Stage Arena (Toppat Airship, The Wall, Bank Vault)\n";
     std::cout << " Player 1 (Tekken 7 4-Button Controls):\n";
     std::cout << "   A / D       : Move / Guard (Hold Back to Block!)\n";
     std::cout << "   S           : Crouch (Hold Down+Back for Crouch Block!)\n";
@@ -144,6 +147,13 @@ int main() {
                     p2.setCharacterDef(roster[p2CharIdx]);
                     juiceFX.spawnFloatingText(p2.getSkeleton()->getPositionPixels() - sf::Vector2f(0.0f, 65.0f),
                         p2.getName(), p2.getCharacterDef().accentColor, 1.8f);
+                }
+
+                // Cycle Stage Arena: F5
+                if (keyPressed->code == sf::Keyboard::Key::F5) {
+                    stageRenderer.cycleStage();
+                    juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 320.0f),
+                        stageRenderer.getStageName(), stageRenderer.getStageThemeColor(), 2.0f);
                 }
 
                 // Rematch / Reset
@@ -259,6 +269,7 @@ int main() {
                             float now = timeManager.getGameTime();
                             if (now - p1LastDReleaseTime < 0.22f) {
                                 p1.getController()->triggerDash(1);
+                                stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(-110.0f, -20.0f), 6);
                             }
                         }
                     }
@@ -268,6 +279,7 @@ int main() {
                             float now = timeManager.getGameTime();
                             if (now - p1LastAReleaseTime < 0.22f) {
                                 p1.getController()->triggerDash(-1);
+                                stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(110.0f, -20.0f), 6);
                             }
                         }
                     }
@@ -275,6 +287,7 @@ int main() {
                     // Jump
                     if (keyPressed->code == sf::Keyboard::Key::W || keyPressed->code == sf::Keyboard::Key::Space) {
                         p1.getController()->jump();
+                        stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(0.0f, -40.0f), 8);
                     }
 
                     // -------------------------------------------------------------
@@ -354,6 +367,7 @@ int main() {
                             float now = timeManager.getGameTime();
                             if (now - p2LastRightReleaseTime < 0.22f) {
                                 p2.getController()->triggerDash(1);
+                                stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(-110.0f, -20.0f), 6);
                             }
                         }
                     }
@@ -363,6 +377,7 @@ int main() {
                             float now = timeManager.getGameTime();
                             if (now - p2LastLeftReleaseTime < 0.22f) {
                                 p2.getController()->triggerDash(-1);
+                                stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(110.0f, -20.0f), 6);
                             }
                         }
                     }
@@ -370,6 +385,7 @@ int main() {
                     // Jump
                     if (keyPressed->code == sf::Keyboard::Key::Up || keyPressed->code == sf::Keyboard::Key::Numpad0) {
                         p2.getController()->jump();
+                        stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(0.0f, -40.0f), 8);
                     }
                 }
             }
@@ -453,7 +469,8 @@ int main() {
         // Update Combat & Fighters
         p1.update(realDt, juiceFX);
         p2.update(realDt, juiceFX);
-        combatManager.update(realDt, timeManager, camera, juiceFX);
+        stageRenderer.update(realDt);
+        combatManager.update(realDt, timeManager, camera, juiceFX, &stageRenderer);
         juiceFX.update(realDt);
 
         // Update Camera
@@ -465,29 +482,18 @@ int main() {
         // -------------------------------------------------------------
         // RENDER PASS
         // -------------------------------------------------------------
-        window.clear(sf::Color(14, 16, 20));
+        window.clear(sf::Color(10, 12, 16));
 
         // World-Space Camera View
         camera.apply(window);
 
-        // Arena Platforms
-        for (const auto& platform : physicsWorld.getPlatforms()) {
-            sf::RectangleShape rect(sf::Vector2f(platform.widthPixels, platform.heightPixels));
-            rect.setOrigin(sf::Vector2f(platform.widthPixels * 0.5f, platform.heightPixels * 0.5f));
-            rect.setPosition(platform.positionPixels);
-            rect.setFillColor(sf::Color(28, 32, 40));
-            rect.setOutlineColor(sf::Color(65, 75, 95));
-            rect.setOutlineThickness(2.0f);
-            window.draw(rect);
+        // 1. Stage Parallax Background (Sky, mountains, clouds, airship hull / fortress / vault)
+        stageRenderer.drawBackground(window, camera.getView());
 
-            sf::RectangleShape topEdge(sf::Vector2f(platform.widthPixels, 3.0f));
-            topEdge.setOrigin(sf::Vector2f(platform.widthPixels * 0.5f, 1.5f));
-            topEdge.setPosition(sf::Vector2f(platform.positionPixels.x, platform.positionPixels.y - platform.heightPixels * 0.5f));
-            topEdge.setFillColor(sf::Color(100, 190, 255, 170));
-            window.draw(topEdge);
-        }
+        // 2. Stage Themed Platforms & Arena Walls
+        stageRenderer.drawPlatforms(window, physicsWorld.getPlatforms());
 
-        // Props (Crates)
+        // 3. Props (Crates)
         for (b2BodyId propId : props) {
             if (b2Body_IsValid(propId)) {
                 sf::Vector2f pos = RagdollEngine::PhysicsUnits::toPixels(b2Body_GetPosition(propId));
@@ -504,16 +510,22 @@ int main() {
             }
         }
 
-        // Ground Drop Shadows
+        // 4. Stage Wall Damage Decals (Wall splat cracks)
+        stageRenderer.drawWallCracks(window);
+
+        // 5. Ground Drop Shadows
         ragdollRenderer.drawDropShadow(window, *p1.getSkeleton(), 800.0f);
         ragdollRenderer.drawDropShadow(window, *p2.getSkeleton(), 800.0f);
 
-        // Draw Fighters
+        // 6. Draw Fighters
         ragdollRenderer.draw(window, *p1.getSkeleton(), p1.getController()->getFacingDirection(), p1.getTheme());
         ragdollRenderer.draw(window, *p2.getSkeleton(), p2.getController()->getFacingDirection(), p2.getTheme());
 
-        // Draw Juice FX (Motion Ribbon Trails, Starbursts, Lightning Arcs, Sparks, Shields)
+        // 7. Draw Juice FX (Motion Ribbon Trails, Starbursts, Lightning Arcs, Sparks, Shields)
         juiceFX.draw(window);
+
+        // 8. Foreground Atmospheric Overlays & Dynamic Lighting (Snowstorm, searchlights, wind streaks, tumbleweed, dust)
+        stageRenderer.drawAtmosphereAndLighting(window, camera.getView());
 
         // -------------------------------------------------------------
         // TEKKEN FIGHTING GAME HUD OVERLAY (Screen-Space)
@@ -728,8 +740,18 @@ int main() {
                 introText.setOutlineColor(sf::Color(10, 10, 15));
                 introText.setOutlineThickness(4.0f);
                 introText.setOrigin(sf::Vector2f(introText.getLocalBounds().size.x * 0.5f, introText.getLocalBounds().size.y * 0.5f));
-                introText.setPosition(sf::Vector2f(800.0f, 380.0f));
+                introText.setPosition(sf::Vector2f(800.0f, 365.0f));
                 window.draw(introText);
+
+                // Stage Presentation Banner
+                sf::Text stageBanner(hudFont, stageRenderer.getStageName() + "  //  " + stageRenderer.getStageSubtitle(), 15);
+                stageBanner.setStyle(sf::Text::Bold);
+                stageBanner.setFillColor(stageRenderer.getStageThemeColor());
+                stageBanner.setOutlineColor(sf::Color(10, 10, 15));
+                stageBanner.setOutlineThickness(2.5f);
+                stageBanner.setOrigin(sf::Vector2f(stageBanner.getLocalBounds().size.x * 0.5f, 0.0f));
+                stageBanner.setPosition(sf::Vector2f(800.0f, 415.0f));
+                window.draw(stageBanner);
             } else if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
                 std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS!") : (p2.getName() + " WINS!");
                 sf::Text winText(hudFont, winnerStr, 52);
@@ -750,7 +772,7 @@ int main() {
             }
 
             // Bottom Quick Move Reference
-            sf::Text moveHelp(hudFont, "F1/F2: Cycle Character | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\nP2: 1 (Num1), 2 (Num2), 3 (Num4), 4 (Num5) | 1+2: (Num3) | 1+3: Throw (Num6) | 3+4: (Num9)\nFwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back", 12);
+            sf::Text moveHelp(hudFont, "F1/F2: Cycle Character | F5: Cycle Stage Arena | TAB: Slow-Mo | [ENTER]/[B]: Rematch\nP1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\nP2: 1 (Num1), 2 (Num2), 3 (Num4), 4 (Num5) | 1+2: (Num3) | 1+3: Throw (Num6) | 3+4: (Num9)\nFwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back", 12);
             moveHelp.setFillColor(sf::Color(150, 165, 185));
             moveHelp.setOrigin(sf::Vector2f(moveHelp.getLocalBounds().size.x * 0.5f, 0.0f));
             moveHelp.setPosition(sf::Vector2f(800.0f, 842.0f));
