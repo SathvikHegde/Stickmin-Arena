@@ -131,9 +131,11 @@ void CameraDirector::update(float realDt) {
     m_view.setSize(sf::Vector2f(m_viewportSize.x * m_currentZoom, m_viewportSize.y * m_currentZoom));
     m_view.setCenter(sf::Vector2f(m_currentCenter.x + m_shakeOffsetX, m_currentCenter.y + m_shakeOffsetY));
     m_view.setRotation(sf::degrees(m_shakeAngle));
+    m_view.setViewport(m_viewportRect);
 }
 
 void CameraDirector::apply(sf::RenderWindow& window) {
+    m_view.setViewport(m_viewportRect);
     window.setView(m_view);
 }
 

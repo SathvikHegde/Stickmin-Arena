@@ -34,6 +34,38 @@ int main() {
     RagdollEngine::CameraDirector camera(1600.0f, 900.0f);
     camera.setZoomLimits(0.42f, 1.05f); // Close, punchy Tekken framing with full arena coverage
 
+    // Resolution-independent virtual coordinate viewport (1600x900)
+    sf::View uiView(sf::FloatRect(sf::Vector2f(0.0f, 0.0f), sf::Vector2f(1600.0f, 900.0f)));
+    auto updateLetterbox = [&](const sf::Vector2u& winSize) {
+        float winW = static_cast<float>(winSize.x);
+        float winH = static_cast<float>(winSize.y);
+        if (winH <= 0.0f) winH = 1.0f;
+        float winRatio = winW / winH;
+        float targetRatio = 1600.0f / 900.0f; // 16:9
+
+        float vpW = 1.0f;
+        float vpH = 1.0f;
+        float vpX = 0.0f;
+        float vpY = 0.0f;
+
+        if (winRatio >= targetRatio) {
+            // Window is wider than 16:9 -> pillarbox (black bars on left/right)
+            vpW = targetRatio / winRatio;
+            vpX = (1.0f - vpW) * 0.5f;
+        } else {
+            // Window is taller than 16:9 -> letterbox (black bars on top/bottom)
+            vpH = winRatio / targetRatio;
+            vpY = (1.0f - vpH) * 0.5f;
+        }
+
+        sf::FloatRect vp(sf::Vector2f(vpX, vpY), sf::Vector2f(vpW, vpH));
+        uiView.setSize(sf::Vector2f(1600.0f, 900.0f));
+        uiView.setCenter(sf::Vector2f(800.0f, 450.0f));
+        uiView.setViewport(vp);
+        camera.setLetterboxViewport(vp);
+    };
+    updateLetterbox(window.getSize());
+
     RagdollEngine::PhysicsWorld physicsWorld(19.0f); // Balanced gravity
     RagdollEngine::RagdollRenderer ragdollRenderer;
     RagdollEngine::JuiceFX juiceFX;
@@ -152,9 +184,14 @@ int main() {
                 window.close();
             }
 
+            if (const auto* resized = event->getIf<sf::Event::Resized>()) {
+                updateLetterbox(resized->size);
+            }
+
             if (const auto* mouseMoved = event->getIf<sf::Event::MouseMoved>()) {
-                sf::Vector2f mousePos(static_cast<float>(mouseMoved->position.x), static_cast<float>(mouseMoved->position.y));
-                menuManager.handleMouseMove(mousePos);
+                sf::Vector2i pixel(mouseMoved->position.x, mouseMoved->position.y);
+                sf::Vector2f uiMousePos = window.mapPixelToCoords(pixel, uiView);
+                menuManager.handleMouseMove(uiMousePos);
             }
 
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
@@ -408,39 +445,39 @@ int main() {
         }
 
         // Mouse Click Handling
-            if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
-                sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-                sf::Vector2f screenPos(static_cast<float>(mousePixel.x), static_cast<float>(mousePixel.y));
-                bool handled = menuManager.handleMouseClick(screenPos, mousePressed->button);
+        if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
+            sf::Vector2i pixel(mousePressed->position.x, mousePressed->position.y);
+            sf::Vector2f uiMousePos = window.mapPixelToCoords(pixel, uiView);
+            bool handled = menuManager.handleMouseClick(uiMousePos, mousePressed->button);
 
-                // If match is over, check interactive button clicks
-                if (!handled && menuManager.getState() == StickminGame::MenuState::Battle &&
-                    combatManager.getState() == StickminGame::MatchState::MatchOver &&
-                    mousePressed->button == sf::Mouse::Button::Left) {
-                    if (sf::FloatRect(sf::Vector2f(260.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
-                        p1.respawn(sf::Vector2f(650.0f, 735.0f));
-                        p2.respawn(sf::Vector2f(950.0f, 735.0f));
-                        p1.resetRoundsWon();
-                        p2.resetRoundsWon();
-                        combatManager.startRound(1);
-                        handled = true;
-                    } else if (sf::FloatRect(sf::Vector2f(520.0f, 475.0f), sf::Vector2f(250.0f, 44.0f)).contains(screenPos)) {
-                        menuManager.setState(StickminGame::MenuState::CharacterSelect);
-                        handled = true;
-                    } else if (sf::FloatRect(sf::Vector2f(810.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
-                        menuManager.setState(StickminGame::MenuState::StageSelect);
-                        handled = true;
-                    } else if (sf::FloatRect(sf::Vector2f(1070.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(screenPos)) {
-                        menuManager.setState(StickminGame::MenuState::TitleScreen);
-                        handled = true;
-                    }
+            // If match is over, check interactive button clicks
+            if (!handled && menuManager.getState() == StickminGame::MenuState::Battle &&
+                combatManager.getState() == StickminGame::MatchState::MatchOver &&
+                mousePressed->button == sf::Mouse::Button::Left) {
+                if (sf::FloatRect(sf::Vector2f(260.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(uiMousePos)) {
+                    p1.respawn(sf::Vector2f(650.0f, 735.0f));
+                    p2.respawn(sf::Vector2f(950.0f, 735.0f));
+                    p1.resetRoundsWon();
+                    p2.resetRoundsWon();
+                    combatManager.startRound(1);
+                    handled = true;
+                } else if (sf::FloatRect(sf::Vector2f(520.0f, 475.0f), sf::Vector2f(250.0f, 44.0f)).contains(uiMousePos)) {
+                    menuManager.setState(StickminGame::MenuState::CharacterSelect);
+                    handled = true;
+                } else if (sf::FloatRect(sf::Vector2f(810.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(uiMousePos)) {
+                    menuManager.setState(StickminGame::MenuState::StageSelect);
+                    handled = true;
+                } else if (sf::FloatRect(sf::Vector2f(1070.0f, 475.0f), sf::Vector2f(220.0f, 44.0f)).contains(uiMousePos)) {
+                    menuManager.setState(StickminGame::MenuState::TitleScreen);
+                    handled = true;
                 }
+            }
 
-                // Sandbox impulse blast wave ONLY if Ctrl+Shift is held (dev cheat code)
-                if (!handled && menuManager.getState() == StickminGame::MenuState::Battle) {
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
-                        sf::Vector2f worldPos = window.mapPixelToCoords(mousePixel, camera.getView());
-                        juiceFX.spawnImpact(worldPos, sf::Vector2f(0.0f, -1.0f), sf::Color(120, 220, 255), true);
+            // Sandbox impulse blast wave ONLY if Ctrl+Shift is held (dev cheat code)
+            if (!handled && menuManager.getState() == StickminGame::MenuState::Battle) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
+                    sf::Vector2f worldPos = window.mapPixelToCoords(pixel, camera.getView());
+                    juiceFX.spawnImpact(worldPos, sf::Vector2f(0.0f, -1.0f), sf::Color(120, 220, 255), true);
                         camera.addTrauma(0.55f);
 
                         b2Vec2 blastCenter = RagdollEngine::PhysicsUnits::toMeters(worldPos);
@@ -601,7 +638,7 @@ int main() {
             // -------------------------------------------------------------
             // TEKKEN FIGHTING GAME HUD OVERLAY (Screen-Space)
             // -------------------------------------------------------------
-            window.setView(window.getDefaultView());
+            window.setView(uiView);
 
             if (fontLoaded) {
                 float topY = 32.0f;
@@ -840,7 +877,7 @@ int main() {
 
                     // 4 Interactive Action Buttons
                     sf::Vector2i mPix = sf::Mouse::getPosition(window);
-                    sf::Vector2f mouseScreenPos(static_cast<float>(mPix.x), static_cast<float>(mPix.y));
+                    sf::Vector2f mouseScreenPos = window.mapPixelToCoords(mPix, uiView);
 
                     auto drawEndBtn = [&](float x, float y, float w, float h, const std::string& label, sf::Color col) {
                         sf::FloatRect rect(sf::Vector2f(x, y), sf::Vector2f(w, h));
@@ -886,16 +923,16 @@ int main() {
             // If Pause Menu or Command List is active during battle, draw on top!
             if (menuManager.getState() == StickminGame::MenuState::PauseMenu ||
                 menuManager.getState() == StickminGame::MenuState::CommandListModal) {
-                window.setView(window.getDefaultView());
+                window.setView(uiView);
                 menuManager.draw(window);
             }
         } else if (menuManager.getState() == StickminGame::MenuState::StageSelect) {
-            window.setView(window.getDefaultView());
-            stageRenderer.drawBackground(window, window.getDefaultView());
-            stageRenderer.drawAtmosphereAndLighting(window, window.getDefaultView());
+            window.setView(uiView);
+            stageRenderer.drawBackground(window, uiView);
+            stageRenderer.drawAtmosphereAndLighting(window, uiView);
             menuManager.draw(window);
         } else {
-            window.setView(window.getDefaultView());
+            window.setView(uiView);
             menuManager.draw(window);
         }
 

@@ -25,6 +25,10 @@ public:
     const sf::View& getView() const { return m_view; }
     void setBaseCenter(const sf::Vector2f& center) { m_targetCenter = center; }
     void setZoomLimits(float minZoom, float maxZoom) { m_minZoom = minZoom; m_maxZoom = maxZoom; }
+    void setLetterboxViewport(const sf::FloatRect& vp) {
+        m_viewportRect = vp;
+        m_view.setViewport(vp);
+    }
 
     // Cinematic Clashes & Finishers
     void triggerCinematicZoom(float targetZoom, float durationSeconds, float tiltAngleDeg = 0.0f);
@@ -58,6 +62,8 @@ private:
     float m_shakeOffsetX{ 0.0f };
     float m_shakeOffsetY{ 0.0f };
     float m_shakeAngle{ 0.0f };
+
+    sf::FloatRect m_viewportRect{ sf::Vector2f(0.0f, 0.0f), sf::Vector2f(1.0f, 1.0f) };
 
     // Random generator helper
     float getRandomFloat(float min, float max);

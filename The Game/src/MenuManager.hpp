@@ -277,7 +277,7 @@ public:
         }
         // 3. Command List Modal Click
         else if (m_state == MenuState::CommandListModal && button == sf::Mouse::Button::Left) {
-            sf::FloatRect closeBtn(sf::Vector2f(670.0f, 780.0f), sf::Vector2f(260.0f, 46.0f));
+            sf::FloatRect closeBtn(sf::Vector2f(670.0f, 728.0f), sf::Vector2f(260.0f, 44.0f));
             if (closeBtn.contains(mousePos) || !sf::FloatRect(sf::Vector2f(250.0f, 100.0f), sf::Vector2f(1100.0f, 750.0f)).contains(mousePos)) {
                 m_state = m_prevModalState;
                 return true;
@@ -285,64 +285,81 @@ public:
         }
         // 4. Character Select Click
         else if (m_state == MenuState::CharacterSelect) {
-            float startX = 415.0f;
-            float cardW = 145.0f;
-            float cardGap = 16.0f;
-            for (size_t i = 0; i < roster.size(); ++i) {
-                sf::FloatRect cardRect(sf::Vector2f(startX + i * (cardW + cardGap), 250.0f), sf::Vector2f(cardW, 200.0f));
-                if (cardRect.contains(mousePos)) {
-                    if (button == sf::Mouse::Button::Left) {
-                        m_p1CharIdx = i;
-                    } else if (button == sf::Mouse::Button::Right) {
-                        m_p2CharIdx = i;
-                    }
-                    return true;
-                }
-            }
-
-            // P1 Ready Button Click
-            sf::FloatRect p1Btn(sf::Vector2f(60.0f, 680.0f), sf::Vector2f(320.0f, 44.0f));
-            if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
-                m_p1Ready = !m_p1Ready;
-                return true;
-            }
-
-            // P2 Ready Button Click
-            sf::FloatRect p2Btn(sf::Vector2f(1220.0f, 680.0f), sf::Vector2f(320.0f, 44.0f));
-            if (p2Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
-                m_p2Ready = !m_p2Ready;
-                return true;
-            }
-
             // Back to Title Click
-            sf::FloatRect backBtn(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(150.0f, 36.0f));
+            sf::FloatRect backBtn(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(130.0f, 36.0f));
             if (backBtn.contains(mousePos) && button == sf::Mouse::Button::Left) {
                 m_p1Ready = false;
                 m_p2Ready = false;
                 m_state = MenuState::TitleScreen;
                 return true;
             }
-        }
-        // 5. Stage Select Click
-        else if (m_state == MenuState::StageSelect && button == sf::Mouse::Button::Left) {
-            for (int i = 0; i < 3; ++i) {
-                sf::FloatRect cardRect(sf::Vector2f(170.0f + i * 430.0f, 250.0f), sf::Vector2f(390.0f, 370.0f));
+
+            // P1 Ready Button Click (or bottom card area)
+            sf::FloatRect p1Btn(sf::Vector2f(60.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+            if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                m_p1Ready = !m_p1Ready;
+                return true;
+            }
+
+            // P2 Ready Button Click (or bottom card area)
+            sf::FloatRect p2Btn(sf::Vector2f(1210.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+            if (p2Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                m_p2Ready = !m_p2Ready;
+                return true;
+            }
+
+            // Character Cards Click
+            float startX = 415.0f;
+            float cardW = 145.0f;
+            float cardGap = 16.0f;
+            for (size_t i = 0; i < roster.size(); ++i) {
+                float cx = startX + i * (cardW + cardGap);
+                sf::FloatRect cardRect(sf::Vector2f(cx, 250.0f), sf::Vector2f(cardW, 200.0f));
                 if (cardRect.contains(mousePos)) {
-                    m_stageIdx = i;
-                    if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
-                    m_state = MenuState::VersusIntro;
-                    m_versusTimer = 2.2f;
+                    if (button == sf::Mouse::Button::Right) {
+                        m_p2CharIdx = i;
+                    } else if (button == sf::Mouse::Button::Left) {
+                        if (m_p1Ready && !m_p2Ready) {
+                            m_p2CharIdx = i;
+                        } else if (!m_p1Ready && m_p2Ready) {
+                            m_p1CharIdx = i;
+                        } else if (mousePos.x < cx + cardW * 0.5f) {
+                            m_p1CharIdx = i;
+                        } else {
+                            m_p2CharIdx = i;
+                        }
+                    }
                     return true;
                 }
             }
-
+        }
+        // 5. Stage Select Click
+        else if (m_state == MenuState::StageSelect && button == sf::Mouse::Button::Left) {
             // Back button
-            sf::FloatRect backBtn(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(150.0f, 36.0f));
+            sf::FloatRect backBtn(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(130.0f, 36.0f));
             if (backBtn.contains(mousePos)) {
                 m_p1Ready = false;
                 m_p2Ready = false;
                 m_state = MenuState::CharacterSelect;
                 return true;
+            }
+
+            for (int i = 0; i < 3; ++i) {
+                float cx = 170.0f + i * 430.0f;
+                float cy = 250.0f;
+                float cardW = 390.0f;
+                float cardH = 370.0f;
+                sf::FloatRect cardRect(sf::Vector2f(cx, cy), sf::Vector2f(cardW, cardH));
+                if (cardRect.contains(mousePos)) {
+                    if (m_stageIdx != i) {
+                        m_stageIdx = i;
+                        if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
+                    } else {
+                        m_state = MenuState::VersusIntro;
+                        m_versusTimer = 2.2f;
+                    }
+                    return true;
+                }
             }
         }
         // 6. Versus Intro Click to Skip
@@ -620,17 +637,19 @@ private:
         window.draw(msg);
 
         // OK Button
+        sf::FloatRect okRect(sf::Vector2f(670.0f, 540.0f), sf::Vector2f(260.0f, 46.0f));
+        bool okHover = okRect.contains(m_mousePos);
         sf::RectangleShape okBtn(sf::Vector2f(260.0f, 46.0f));
         okBtn.setOrigin(sf::Vector2f(130.0f, 23.0f));
         okBtn.setPosition(sf::Vector2f(800.0f, 563.0f));
-        okBtn.setFillColor(sf::Color(45, 120, 220));
-        okBtn.setOutlineColor(sf::Color(255, 255, 255));
-        okBtn.setOutlineThickness(2.0f);
+        okBtn.setFillColor(okHover ? sf::Color(65, 150, 245) : sf::Color(45, 120, 220));
+        okBtn.setOutlineColor(okHover ? sf::Color(255, 235, 100) : sf::Color(255, 255, 255));
+        okBtn.setOutlineThickness(okHover ? 3.0f : 2.0f);
         window.draw(okBtn);
 
         sf::Text okText(*m_font, "OK // BACK TO MENU", 15);
         okText.setStyle(sf::Text::Bold);
-        okText.setFillColor(sf::Color::White);
+        okText.setFillColor(okHover ? sf::Color(255, 255, 120) : sf::Color::White);
         okText.setOrigin(sf::Vector2f(okText.getLocalBounds().size.x * 0.5f, okText.getLocalBounds().size.y * 0.5f + 3.0f));
         okText.setPosition(sf::Vector2f(800.0f, 563.0f));
         window.draw(okText);
@@ -776,17 +795,19 @@ private:
         window.draw(t3);
 
         // Close Button
+        sf::FloatRect closeRect(sf::Vector2f(670.0f, 728.0f), sf::Vector2f(260.0f, 44.0f));
+        bool closeHover = closeRect.contains(m_mousePos);
         sf::RectangleShape closeBtn(sf::Vector2f(260.0f, 44.0f));
         closeBtn.setOrigin(sf::Vector2f(130.0f, 22.0f));
         closeBtn.setPosition(sf::Vector2f(800.0f, 750.0f));
-        closeBtn.setFillColor(sf::Color(45, 120, 220));
-        closeBtn.setOutlineColor(sf::Color::White);
-        closeBtn.setOutlineThickness(2.0f);
+        closeBtn.setFillColor(closeHover ? sf::Color(65, 150, 245) : sf::Color(45, 120, 220));
+        closeBtn.setOutlineColor(closeHover ? sf::Color(255, 235, 100) : sf::Color::White);
+        closeBtn.setOutlineThickness(closeHover ? 3.0f : 2.0f);
         window.draw(closeBtn);
 
         sf::Text closeText(*m_font, "[ CLOSE // ESC ]", 15);
         closeText.setStyle(sf::Text::Bold);
-        closeText.setFillColor(sf::Color::White);
+        closeText.setFillColor(closeHover ? sf::Color(255, 255, 120) : sf::Color::White);
         closeText.setOrigin(sf::Vector2f(closeText.getLocalBounds().size.x * 0.5f, closeText.getLocalBounds().size.y * 0.5f + 3.0f));
         closeText.setPosition(sf::Vector2f(800.0f, 750.0f));
         window.draw(closeText);
@@ -813,7 +834,7 @@ private:
         header.setPosition(sf::Vector2f(800.0f, 30.0f));
         window.draw(header);
 
-        sf::Text sub(*m_font, "CHOOSE YOUR COMBATANT // PRESS J/SPACE (P1) AND NUM1/ENTER (P2) TO LOCK IN", 12);
+        sf::Text sub(*m_font, "CLICK [PICK P1] / [PICK P2] ON CARDS OR PRESS J / ENTER TO LOCK IN", 12);
         sub.setFillColor(sf::Color(255, 215, 60));
         sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
         sub.setPosition(sf::Vector2f(800.0f, 76.0f));
@@ -834,10 +855,11 @@ private:
 
             bool isP1 = (m_p1CharIdx == i);
             bool isP2 = (m_p2CharIdx == i);
+            bool isCardHovered = sf::FloatRect(sf::Vector2f(cx, cy), sf::Vector2f(cardW, cardH)).contains(m_mousePos);
 
             sf::RectangleShape card(sf::Vector2f(cardW, cardH));
             card.setPosition(sf::Vector2f(cx, cy));
-            card.setFillColor(sf::Color(20, 24, 34, 240));
+            card.setFillColor(isCardHovered ? sf::Color(26, 32, 46, 250) : sf::Color(20, 24, 34, 240));
 
             if (isP1 && isP2) {
                 card.setOutlineColor(sf::Color(255, 215, 60)); // Gold if both pick same
@@ -848,6 +870,9 @@ private:
             } else if (isP2) {
                 card.setOutlineColor(sf::Color(245, 55, 65));  // Crimson for P2
                 card.setOutlineThickness(3.5f);
+            } else if (isCardHovered) {
+                card.setOutlineColor(sf::Color(100, 130, 175));
+                card.setOutlineThickness(2.2f);
             } else {
                 card.setOutlineColor(sf::Color(55, 65, 85));
                 card.setOutlineThickness(1.5f);
@@ -874,32 +899,38 @@ private:
             title.setPosition(sf::Vector2f(cx + cardW * 0.5f, cy + 152.0f));
             window.draw(title);
 
-            // P1 / P2 Badges
-            if (isP1) {
-                sf::RectangleShape p1Pill(sf::Vector2f(38.0f, 18.0f));
-                p1Pill.setPosition(sf::Vector2f(cx + 6.0f, cy + 6.0f));
-                p1Pill.setFillColor(sf::Color(45, 145, 255));
-                window.draw(p1Pill);
+            // Interactive P1 / P2 Badges
+            sf::FloatRect p1TagRect(sf::Vector2f(cx + 6.0f, cy + 6.0f), sf::Vector2f(56.0f, 20.0f));
+            bool p1Hover = p1TagRect.contains(m_mousePos);
+            sf::RectangleShape p1Pill(sf::Vector2f(56.0f, 20.0f));
+            p1Pill.setPosition(sf::Vector2f(cx + 6.0f, cy + 6.0f));
+            p1Pill.setFillColor(isP1 ? sf::Color(45, 145, 255) : (p1Hover ? sf::Color(35, 65, 110) : sf::Color(22, 28, 40)));
+            p1Pill.setOutlineColor(isP1 ? sf::Color::White : (p1Hover ? sf::Color(65, 165, 255) : sf::Color(48, 62, 82)));
+            p1Pill.setOutlineThickness(isP1 || p1Hover ? 1.5f : 1.0f);
+            window.draw(p1Pill);
 
-                sf::Text p1Tag(*m_font, "P1", 10);
-                p1Tag.setStyle(sf::Text::Bold);
-                p1Tag.setFillColor(sf::Color::White);
-                p1Tag.setPosition(sf::Vector2f(cx + 17.0f, cy + 8.0f));
-                window.draw(p1Tag);
-            }
+            sf::Text p1Tag(*m_font, isP1 ? "P1 LOCK" : "PICK P1", 9);
+            p1Tag.setStyle(sf::Text::Bold);
+            p1Tag.setFillColor(isP1 ? sf::Color::White : (p1Hover ? sf::Color(140, 205, 255) : sf::Color(135, 150, 170)));
+            p1Tag.setOrigin(sf::Vector2f(p1Tag.getLocalBounds().size.x * 0.5f, p1Tag.getLocalBounds().size.y * 0.5f + 2.0f));
+            p1Tag.setPosition(sf::Vector2f(cx + 34.0f, cy + 15.0f));
+            window.draw(p1Tag);
 
-            if (isP2) {
-                sf::RectangleShape p2Pill(sf::Vector2f(38.0f, 18.0f));
-                p2Pill.setPosition(sf::Vector2f(cx + cardW - 44.0f, cy + 6.0f));
-                p2Pill.setFillColor(sf::Color(245, 55, 65));
-                window.draw(p2Pill);
+            sf::FloatRect p2TagRect(sf::Vector2f(cx + cardW - 62.0f, cy + 6.0f), sf::Vector2f(56.0f, 20.0f));
+            bool p2Hover = p2TagRect.contains(m_mousePos);
+            sf::RectangleShape p2Pill(sf::Vector2f(56.0f, 20.0f));
+            p2Pill.setPosition(sf::Vector2f(cx + cardW - 62.0f, cy + 6.0f));
+            p2Pill.setFillColor(isP2 ? sf::Color(245, 55, 65) : (p2Hover ? sf::Color(110, 35, 45) : sf::Color(22, 28, 40)));
+            p2Pill.setOutlineColor(isP2 ? sf::Color::White : (p2Hover ? sf::Color(255, 75, 85) : sf::Color(82, 48, 52)));
+            p2Pill.setOutlineThickness(isP2 || p2Hover ? 1.5f : 1.0f);
+            window.draw(p2Pill);
 
-                sf::Text p2Tag(*m_font, "P2", 10);
-                p2Tag.setStyle(sf::Text::Bold);
-                p2Tag.setFillColor(sf::Color::White);
-                p2Tag.setPosition(sf::Vector2f(cx + cardW - 33.0f, cy + 8.0f));
-                window.draw(p2Tag);
-            }
+            sf::Text p2Tag(*m_font, isP2 ? "P2 LOCK" : "PICK P2", 9);
+            p2Tag.setStyle(sf::Text::Bold);
+            p2Tag.setFillColor(isP2 ? sf::Color::White : (p2Hover ? sf::Color(255, 150, 160) : sf::Color(170, 135, 140)));
+            p2Tag.setOrigin(sf::Vector2f(p2Tag.getLocalBounds().size.x * 0.5f, p2Tag.getLocalBounds().size.y * 0.5f + 2.0f));
+            p2Tag.setPosition(sf::Vector2f(cx + cardW - 34.0f, cy + 15.0f));
+            window.draw(p2Tag);
         }
 
         // ---------------------------------------------------------------------
@@ -913,16 +944,18 @@ private:
         drawPlayerProfileCard(window, 2, m_p2CharIdx, m_p2Ready, sf::Vector2f(1210.0f, 130.0f), sf::Vector2f(330.0f, 620.0f));
 
         // Back Button
+        sf::FloatRect backRect(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(130.0f, 34.0f));
+        bool backHover = backRect.contains(m_mousePos);
         sf::RectangleShape backBtn(sf::Vector2f(130.0f, 34.0f));
         backBtn.setPosition(sf::Vector2f(40.0f, 30.0f));
-        backBtn.setFillColor(sf::Color(24, 28, 38));
-        backBtn.setOutlineColor(sf::Color(65, 80, 105));
-        backBtn.setOutlineThickness(1.5f);
+        backBtn.setFillColor(backHover ? sf::Color(38, 46, 62) : sf::Color(24, 28, 38));
+        backBtn.setOutlineColor(backHover ? sf::Color(255, 215, 60) : sf::Color(65, 80, 105));
+        backBtn.setOutlineThickness(backHover ? 2.5f : 1.5f);
         window.draw(backBtn);
 
         sf::Text backText(*m_font, "< BACK", 12);
         backText.setStyle(sf::Text::Bold);
-        backText.setFillColor(sf::Color(180, 195, 215));
+        backText.setFillColor(backHover ? sf::Color::White : sf::Color(180, 195, 215));
         backText.setPosition(sf::Vector2f(72.0f, 38.0f));
         window.draw(backText);
 
@@ -1034,16 +1067,18 @@ private:
         window.draw(moves);
 
         // Ready Status Box
+        sf::FloatRect btnRect(sf::Vector2f(pos.x + 22.0f, pos.y + size.y - 60.0f), sf::Vector2f(size.x - 44.0f, 44.0f));
+        bool btnHover = btnRect.contains(m_mousePos);
         sf::RectangleShape statusBtn(sf::Vector2f(size.x - 44.0f, 44.0f));
         statusBtn.setPosition(sf::Vector2f(pos.x + 22.0f, pos.y + size.y - 60.0f));
         if (isReady) {
-            statusBtn.setFillColor(sf::Color(45, 180, 85));
-            statusBtn.setOutlineColor(sf::Color(255, 255, 255));
-            statusBtn.setOutlineThickness(2.0f);
+            statusBtn.setFillColor(btnHover ? sf::Color(55, 210, 105) : sf::Color(45, 180, 85));
+            statusBtn.setOutlineColor(btnHover ? sf::Color(255, 255, 120) : sf::Color(255, 255, 255));
+            statusBtn.setOutlineThickness(btnHover ? 3.0f : 2.0f);
         } else {
-            statusBtn.setFillColor(sf::Color(30, 36, 48));
-            statusBtn.setOutlineColor(themeCol);
-            statusBtn.setOutlineThickness(1.5f);
+            statusBtn.setFillColor(btnHover ? sf::Color(45, 55, 75) : sf::Color(30, 36, 48));
+            statusBtn.setOutlineColor(btnHover ? sf::Color(255, 215, 60) : themeCol);
+            statusBtn.setOutlineThickness(btnHover ? 2.5f : 1.5f);
         }
         window.draw(statusBtn);
 
@@ -1143,14 +1178,18 @@ private:
 
             // Confirmation Pill on Selected
             if (isSelected) {
+                sf::FloatRect pillRect(sf::Vector2f(cx + 18.0f, cy + cardH - 62.0f), sf::Vector2f(cardW - 36.0f, 44.0f));
+                bool pillHover = pillRect.contains(m_mousePos);
                 sf::RectangleShape pill(sf::Vector2f(cardW - 36.0f, 44.0f));
                 pill.setPosition(sf::Vector2f(cx + 18.0f, cy + cardH - 62.0f));
-                pill.setFillColor(stages[i].color);
+                pill.setFillColor(pillHover ? sf::Color(255, 215, 60) : stages[i].color);
+                pill.setOutlineColor(pillHover ? sf::Color::White : sf::Color::Transparent);
+                pill.setOutlineThickness(pillHover ? 2.5f : 0.0f);
                 window.draw(pill);
 
                 sf::Text pillText(*m_font, "[ PRESS ENTER OR CLICK TO COMMENCE ]", 13);
                 pillText.setStyle(sf::Text::Bold);
-                pillText.setFillColor(sf::Color::White);
+                pillText.setFillColor(pillHover ? sf::Color(10, 12, 16) : sf::Color::White);
                 pillText.setOrigin(sf::Vector2f(pillText.getLocalBounds().size.x * 0.5f, pillText.getLocalBounds().size.y * 0.5f + 3.0f));
                 pillText.setPosition(sf::Vector2f(cx + cardW * 0.5f, cy + cardH - 40.0f));
                 window.draw(pillText);
@@ -1158,16 +1197,18 @@ private:
         }
 
         // Back Button
+        sf::FloatRect backRect(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(130.0f, 34.0f));
+        bool backHover = backRect.contains(m_mousePos);
         sf::RectangleShape backBtn(sf::Vector2f(130.0f, 34.0f));
         backBtn.setPosition(sf::Vector2f(40.0f, 30.0f));
-        backBtn.setFillColor(sf::Color(24, 28, 38));
-        backBtn.setOutlineColor(sf::Color(65, 80, 105));
-        backBtn.setOutlineThickness(1.5f);
+        backBtn.setFillColor(backHover ? sf::Color(38, 46, 62) : sf::Color(24, 28, 38));
+        backBtn.setOutlineColor(backHover ? sf::Color(255, 215, 60) : sf::Color(65, 80, 105));
+        backBtn.setOutlineThickness(backHover ? 2.5f : 1.5f);
         window.draw(backBtn);
 
         sf::Text backText(*m_font, "< BACK", 12);
         backText.setStyle(sf::Text::Bold);
-        backText.setFillColor(sf::Color(180, 195, 215));
+        backText.setFillColor(backHover ? sf::Color::White : sf::Color(180, 195, 215));
         backText.setPosition(sf::Vector2f(72.0f, 38.0f));
         window.draw(backText);
     }
