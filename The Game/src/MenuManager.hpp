@@ -8,10 +8,13 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
+#include <SFML/Window/Clipboard.hpp>
 
 #include <RagdollEngine/Render/CharacterRegistry.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
 #include <RagdollEngine/Render/StageRenderer.hpp>
+
+#include "NetworkManager.hpp"
 
 #include <string>
 #include <vector>
@@ -22,6 +25,7 @@ namespace StickminGame {
 
 enum class MenuState {
     TitleScreen,
+    OnlineLobbyModal,
     CpuComingSoonModal,
     CommandListModal,
     CharacterSelect,
@@ -33,14 +37,15 @@ enum class MenuState {
 
 enum class GameMode {
     Versus,
+    Online,
     Practice,
     CpuPlaceholder
 };
 
 class MenuManager {
 public:
-    MenuManager(const sf::Font* font, RagdollEngine::RagdollRenderer* ragdollRenderer, RagdollEngine::StageRenderer* stageRenderer)
-        : m_font(font), m_ragdollRenderer(ragdollRenderer), m_stageRenderer(stageRenderer) {
+    MenuManager(const sf::Font* font, RagdollEngine::RagdollRenderer* ragdollRenderer, RagdollEngine::StageRenderer* stageRenderer, NetworkManager* netManager = nullptr)
+        : m_font(font), m_ragdollRenderer(ragdollRenderer), m_stageRenderer(stageRenderer), m_netManager(netManager) {
     }
 
     // State getters & setters
@@ -66,6 +71,26 @@ public:
     size_t getP1CharIndex() const { return m_p1CharIdx; }
     size_t getP2CharIndex() const { return m_p2CharIdx; }
     int getSelectedStageIndex() const { return m_stageIdx; }
+
+    void setNetworkManager(NetworkManager* nm) { m_netManager = nm; }
+    NetworkManager* getNetworkManager() const { return m_netManager; }
+
+    void setP1CharIndex(size_t idx) { m_p1CharIdx = idx; }
+    void setP2CharIndex(size_t idx) { m_p2CharIdx = idx; }
+    void setP1Ready(bool r) { m_p1Ready = r; }
+    void setP2Ready(bool r) { m_p2Ready = r; }
+    bool isP1Ready() const { return m_p1Ready; }
+    bool isP2Ready() const { return m_p2Ready; }
+    void setSelectedStageIndex(int idx) { m_stageIdx = idx; }
+
+    bool consumeLobbyDirty() {
+        bool d = m_lobbyStateDirty;
+        m_lobbyStateDirty = false;
+        return d;
+    }
+    void markLobbyDirty() { m_lobbyStateDirty = true; }
+    const std::string& getJoinIpInput() const { return m_joinIpInput; }
+    void setJoinIpInput(const std::string& ip) { m_joinIpInput = ip; }
 
     bool isVersusIntroFinished() const { return m_state == MenuState::VersusIntro && m_versusTimer <= 0.0f; }
 
@@ -103,7 +128,13 @@ public:
         if (m_state == MenuState::CharacterSelect && m_p1Ready && m_p2Ready) {
             m_lockinTimer += dt;
             if (m_lockinTimer >= 0.55f) {
-                m_state = MenuState::StageSelect;
+                if (m_gameMode == GameMode::Online) {
+                    if (m_netManager && m_netManager->isHost()) {
+                        m_state = MenuState::StageSelect;
+                    }
+                } else {
+                    m_state = MenuState::StageSelect;
+                }
                 m_lockinTimer = 0.0f;
             }
         } else {
@@ -120,13 +151,34 @@ public:
         // 1. Title Screen
         if (m_state == MenuState::TitleScreen) {
             if (key == sf::Keyboard::Key::W || key == sf::Keyboard::Key::Up) {
-                m_titleSelectedIdx = (m_titleSelectedIdx + 4) % 5;
+                m_titleSelectedIdx = (m_titleSelectedIdx + 5) % 6;
             } else if (key == sf::Keyboard::Key::S || key == sf::Keyboard::Key::Down) {
-                m_titleSelectedIdx = (m_titleSelectedIdx + 1) % 5;
+                m_titleSelectedIdx = (m_titleSelectedIdx + 1) % 6;
             } else if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space) {
                 executeTitleAction(m_titleSelectedIdx);
             } else if (key == sf::Keyboard::Key::Escape) {
                 m_quitRequested = true;
+            }
+        }
+        // 1.5. Online Lobby Modal
+        else if (m_state == MenuState::OnlineLobbyModal) {
+            if (key == sf::Keyboard::Key::Escape) {
+                m_state = MenuState::TitleScreen;
+            } else if (key == sf::Keyboard::Key::Enter) {
+                if (m_netManager && m_netManager->isConnected()) {
+                    m_p1Ready = false;
+                    m_p2Ready = false;
+                    m_gameMode = GameMode::Online;
+                    m_state = MenuState::CharacterSelect;
+                    m_lobbyStateDirty = true;
+                } else if (m_ipInputFocused) {
+                    if (m_netManager) m_netManager->connectToHost(m_joinIpInput);
+                }
+            } else if (key == sf::Keyboard::Key::V && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                std::string clip = sf::Clipboard::getString().toAnsiString();
+                if (!clip.empty()) {
+                    m_joinIpInput = clip;
+                }
             }
         }
         // 2. CPU Coming Soon Modal
@@ -143,36 +195,81 @@ public:
         }
         // 4. Character Select
         else if (m_state == MenuState::CharacterSelect) {
-            // Player 1: A / D to navigate, J / Space to toggle ready
-            if (!m_p1Ready) {
-                if (key == sf::Keyboard::Key::A) {
-                    m_p1CharIdx = (m_p1CharIdx + roster.size() - 1) % roster.size();
-                } else if (key == sf::Keyboard::Key::D) {
-                    m_p1CharIdx = (m_p1CharIdx + 1) % roster.size();
-                }
-            }
-            if (key == sf::Keyboard::Key::J || key == sf::Keyboard::Key::Space) {
-                m_p1Ready = !m_p1Ready;
-            }
+            if (m_gameMode == GameMode::Online) {
+                bool isHost = (m_netManager && m_netManager->isHost());
+                bool isClient = (m_netManager && m_netManager->isClient());
 
-            // Player 2: Left / Right to navigate, Num1 / Enter to toggle ready
-            if (!m_p2Ready) {
-                if (key == sf::Keyboard::Key::Left) {
-                    m_p2CharIdx = (m_p2CharIdx + roster.size() - 1) % roster.size();
-                } else if (key == sf::Keyboard::Key::Right) {
-                    m_p2CharIdx = (m_p2CharIdx + 1) % roster.size();
+                if (isHost) {
+                    if (!m_p1Ready) {
+                        if (key == sf::Keyboard::Key::A || key == sf::Keyboard::Key::Left) {
+                            m_p1CharIdx = (m_p1CharIdx + roster.size() - 1) % roster.size();
+                            m_lobbyStateDirty = true;
+                        } else if (key == sf::Keyboard::Key::D || key == sf::Keyboard::Key::Right) {
+                            m_p1CharIdx = (m_p1CharIdx + 1) % roster.size();
+                            m_lobbyStateDirty = true;
+                        }
+                    }
+                    if (key == sf::Keyboard::Key::J || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::Enter) {
+                        m_p1Ready = !m_p1Ready;
+                        m_lobbyStateDirty = true;
+                    }
+                } else if (isClient) {
+                    if (!m_p2Ready) {
+                        if (key == sf::Keyboard::Key::A || key == sf::Keyboard::Key::Left) {
+                            m_p2CharIdx = (m_p2CharIdx + roster.size() - 1) % roster.size();
+                            m_lobbyStateDirty = true;
+                        } else if (key == sf::Keyboard::Key::D || key == sf::Keyboard::Key::Right) {
+                            m_p2CharIdx = (m_p2CharIdx + 1) % roster.size();
+                            m_lobbyStateDirty = true;
+                        }
+                    }
+                    if (key == sf::Keyboard::Key::J || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::Enter) {
+                        m_p2Ready = !m_p2Ready;
+                        m_lobbyStateDirty = true;
+                    }
                 }
-            }
-            if (key == sf::Keyboard::Key::Numpad1 || key == sf::Keyboard::Key::Enter) {
-                m_p2Ready = !m_p2Ready;
-            }
 
-            if (key == sf::Keyboard::Key::Escape) {
-                if (m_p1Ready || m_p2Ready) {
-                    m_p1Ready = false;
-                    m_p2Ready = false;
-                } else {
-                    m_state = MenuState::TitleScreen;
+                if (key == sf::Keyboard::Key::Escape) {
+                    if (m_p1Ready || m_p2Ready) {
+                        if (isHost) m_p1Ready = false;
+                        if (isClient) m_p2Ready = false;
+                        m_lobbyStateDirty = true;
+                    } else {
+                        m_state = MenuState::OnlineLobbyModal;
+                    }
+                }
+            } else {
+                // Player 1: A / D to navigate, J / Space to toggle ready
+                if (!m_p1Ready) {
+                    if (key == sf::Keyboard::Key::A) {
+                        m_p1CharIdx = (m_p1CharIdx + roster.size() - 1) % roster.size();
+                    } else if (key == sf::Keyboard::Key::D) {
+                        m_p1CharIdx = (m_p1CharIdx + 1) % roster.size();
+                    }
+                }
+                if (key == sf::Keyboard::Key::J || key == sf::Keyboard::Key::Space) {
+                    m_p1Ready = !m_p1Ready;
+                }
+
+                // Player 2: Left / Right to navigate, Num1 / Enter to toggle ready
+                if (!m_p2Ready) {
+                    if (key == sf::Keyboard::Key::Left) {
+                        m_p2CharIdx = (m_p2CharIdx + roster.size() - 1) % roster.size();
+                    } else if (key == sf::Keyboard::Key::Right) {
+                        m_p2CharIdx = (m_p2CharIdx + 1) % roster.size();
+                    }
+                }
+                if (key == sf::Keyboard::Key::Numpad1 || key == sf::Keyboard::Key::Enter) {
+                    m_p2Ready = !m_p2Ready;
+                }
+
+                if (key == sf::Keyboard::Key::Escape) {
+                    if (m_p1Ready || m_p2Ready) {
+                        m_p1Ready = false;
+                        m_p2Ready = false;
+                    } else {
+                        m_state = MenuState::TitleScreen;
+                    }
                 }
             }
         }
@@ -185,6 +282,11 @@ public:
                 m_stageIdx = (m_stageIdx + 1) % 3;
                 if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
             } else if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::J) {
+                if (m_gameMode == GameMode::Online) {
+                    if (m_netManager && m_netManager->isHost()) {
+                        m_netManager->sendMatchStart();
+                    }
+                }
                 m_state = MenuState::VersusIntro;
                 m_versusTimer = 2.2f;
             } else if (key == sf::Keyboard::Key::Escape) {
@@ -228,8 +330,8 @@ public:
         m_mousePos = mousePos;
 
         if (m_state == MenuState::TitleScreen) {
-            for (int i = 0; i < 5; ++i) {
-                sf::FloatRect btnRect(sf::Vector2f(580.0f, 320.0f + i * 62.0f), sf::Vector2f(440.0f, 48.0f));
+            for (int i = 0; i < 6; ++i) {
+                sf::FloatRect btnRect(sf::Vector2f(580.0f, 300.0f + i * 54.0f), sf::Vector2f(440.0f, 42.0f));
                 if (btnRect.contains(mousePos)) {
                     m_titleSelectedIdx = i;
                 }
@@ -254,15 +356,86 @@ public:
         }
     }
 
+    void handleTextEntered(char32_t unicode) {
+        if (m_state == MenuState::OnlineLobbyModal && m_ipInputFocused) {
+            if (unicode == 8 || unicode == 127) { // Backspace
+                if (!m_joinIpInput.empty()) {
+                    m_joinIpInput.pop_back();
+                }
+            } else if ((unicode >= '0' && unicode <= '9') || unicode == '.' || (unicode >= 'a' && unicode <= 'z') || (unicode >= 'A' && unicode <= 'Z') || unicode == ':' || unicode == '-') {
+                if (m_joinIpInput.size() < 40) {
+                    m_joinIpInput += static_cast<char>(unicode);
+                }
+            }
+        }
+    }
+
     bool handleMouseClick(const sf::Vector2f& mousePos, sf::Mouse::Button button) {
         const auto& roster = RagdollEngine::CharacterRegistry::getAllRosterCharacters();
 
         // 1. Title Screen Click
         if (m_state == MenuState::TitleScreen && button == sf::Mouse::Button::Left) {
-            for (int i = 0; i < 5; ++i) {
-                sf::FloatRect btnRect(sf::Vector2f(580.0f, 320.0f + i * 62.0f), sf::Vector2f(440.0f, 48.0f));
+            for (int i = 0; i < 6; ++i) {
+                sf::FloatRect btnRect(sf::Vector2f(580.0f, 300.0f + i * 54.0f), sf::Vector2f(440.0f, 42.0f));
                 if (btnRect.contains(mousePos)) {
                     executeTitleAction(i);
+                    return true;
+                }
+            }
+        }
+        // 1.5 Online Lobby Modal Click
+        else if (m_state == MenuState::OnlineLobbyModal && button == sf::Mouse::Button::Left) {
+            // Back Button
+            sf::FloatRect backBtn(sf::Vector2f(250.0f, 660.0f), sf::Vector2f(220.0f, 46.0f));
+            if (backBtn.contains(mousePos)) {
+                m_state = MenuState::TitleScreen;
+                return true;
+            }
+
+            // Host Button
+            sf::FloatRect hostBtn(sf::Vector2f(274.0f, 545.0f), sf::Vector2f(470.0f, 48.0f));
+            if (hostBtn.contains(mousePos)) {
+                if (m_netManager) {
+                    if (m_netManager->getStatus() == ConnectionStatus::Listening || m_netManager->isConnected()) {
+                        m_netManager->disconnect();
+                    } else {
+                        m_netManager->startHost(24800, 24801);
+                    }
+                }
+                return true;
+            }
+
+            // IP Input Box Focus
+            sf::FloatRect ipBox(sf::Vector2f(854.0f, 378.0f), sf::Vector2f(470.0f, 44.0f));
+            if (ipBox.contains(mousePos)) {
+                m_ipInputFocused = true;
+                return true;
+            } else {
+                m_ipInputFocused = false;
+            }
+
+            // Join / Connect Button
+            sf::FloatRect joinBtn(sf::Vector2f(854.0f, 545.0f), sf::Vector2f(470.0f, 48.0f));
+            if (joinBtn.contains(mousePos)) {
+                if (m_netManager) {
+                    if (m_netManager->isConnected() || m_netManager->getStatus() == ConnectionStatus::Connecting) {
+                        m_netManager->disconnect();
+                    } else {
+                        m_netManager->connectToHost(m_joinIpInput, 24800, 24801);
+                    }
+                }
+                return true;
+            }
+
+            // Proceed to Character Select (only when connected)
+            if (m_netManager && m_netManager->isConnected()) {
+                sf::FloatRect procBtn(sf::Vector2f(500.0f, 655.0f), sf::Vector2f(600.0f, 54.0f));
+                if (procBtn.contains(mousePos)) {
+                    m_p1Ready = false;
+                    m_p2Ready = false;
+                    m_gameMode = GameMode::Online;
+                    m_state = MenuState::CharacterSelect;
+                    m_lobbyStateDirty = true;
                     return true;
                 }
             }
@@ -285,23 +458,80 @@ public:
         }
         // 4. Character Select Click
         else if (m_state == MenuState::CharacterSelect) {
-            // Back to Title Click
+            // Back to Title / Lobby Click
             sf::FloatRect backBtn(sf::Vector2f(40.0f, 30.0f), sf::Vector2f(130.0f, 36.0f));
             if (backBtn.contains(mousePos) && button == sf::Mouse::Button::Left) {
                 m_p1Ready = false;
                 m_p2Ready = false;
-                m_state = MenuState::TitleScreen;
+                if (m_gameMode == GameMode::Online && m_netManager) {
+                    m_netManager->sendReturnToLobby();
+                }
+                m_state = (m_gameMode == GameMode::Online) ? MenuState::OnlineLobbyModal : MenuState::TitleScreen;
                 return true;
             }
 
-            // P1 Ready Button Click (or bottom card area)
+            if (m_gameMode == GameMode::Online) {
+                bool isHost = (m_netManager && m_netManager->isHost());
+                bool isClient = (m_netManager && m_netManager->isClient());
+
+                // Host controls P1
+                if (isHost) {
+                    sf::FloatRect p1Btn(sf::Vector2f(60.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+                    if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                        m_p1Ready = !m_p1Ready;
+                        m_lobbyStateDirty = true;
+                        return true;
+                    }
+
+                    if (!m_p1Ready) {
+                        float startX = 415.0f;
+                        float cardW = 145.0f;
+                        float cardGap = 16.0f;
+                        for (size_t i = 0; i < roster.size(); ++i) {
+                            float cx = startX + i * (cardW + cardGap);
+                            sf::FloatRect cardRect(sf::Vector2f(cx, 250.0f), sf::Vector2f(cardW, 200.0f));
+                            if (cardRect.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                                m_p1CharIdx = i;
+                                m_lobbyStateDirty = true;
+                                return true;
+                            }
+                        }
+                    }
+                }
+                // Client controls P2
+                else if (isClient) {
+                    sf::FloatRect p2Btn(sf::Vector2f(1210.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+                    if (p2Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                        m_p2Ready = !m_p2Ready;
+                        m_lobbyStateDirty = true;
+                        return true;
+                    }
+
+                    if (!m_p2Ready) {
+                        float startX = 415.0f;
+                        float cardW = 145.0f;
+                        float cardGap = 16.0f;
+                        for (size_t i = 0; i < roster.size(); ++i) {
+                            float cx = startX + i * (cardW + cardGap);
+                            sf::FloatRect cardRect(sf::Vector2f(cx, 250.0f), sf::Vector2f(cardW, 200.0f));
+                            if (cardRect.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                                m_p2CharIdx = i;
+                                m_lobbyStateDirty = true;
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            // Local Versus Mode clicks
             sf::FloatRect p1Btn(sf::Vector2f(60.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
             if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
                 m_p1Ready = !m_p1Ready;
                 return true;
             }
 
-            // P2 Ready Button Click (or bottom card area)
             sf::FloatRect p2Btn(sf::Vector2f(1210.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
             if (p2Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
                 m_p2Ready = !m_p2Ready;
@@ -355,6 +585,9 @@ public:
                         m_stageIdx = i;
                         if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
                     } else {
+                        if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isHost()) {
+                            m_netManager->sendMatchStart();
+                        }
                         m_state = MenuState::VersusIntro;
                         m_versusTimer = 2.2f;
                     }
@@ -391,6 +624,10 @@ public:
             case MenuState::TitleScreen:
                 drawTitleScreen(window);
                 break;
+            case MenuState::OnlineLobbyModal:
+                drawTitleScreen(window);
+                drawOnlineLobbyModal(window);
+                break;
             case MenuState::CpuComingSoonModal:
                 drawTitleScreen(window);
                 drawCpuComingSoonModal(window);
@@ -426,21 +663,26 @@ private:
                 m_p2Ready = false;
                 m_state = MenuState::CharacterSelect;
                 break;
-            case 1: // VS CPU (COMING SOON)
+            case 1: // ONLINE / LAN MULTIPLAYER
+                m_gameMode = GameMode::Online;
+                m_prevModalState = MenuState::TitleScreen;
+                m_state = MenuState::OnlineLobbyModal;
+                break;
+            case 2: // VS CPU (COMING SOON)
                 m_gameMode = GameMode::CpuPlaceholder;
                 m_state = MenuState::CpuComingSoonModal;
                 break;
-            case 2: // PRACTICE / TRAINING
+            case 3: // PRACTICE / TRAINING
                 m_gameMode = GameMode::Practice;
                 m_p1Ready = false;
                 m_p2Ready = true; // Practice: P2 is dummy, already ready!
                 m_state = MenuState::CharacterSelect;
                 break;
-            case 3: // COMMAND LIST
+            case 4: // COMMAND LIST
                 m_prevModalState = MenuState::TitleScreen;
                 m_state = MenuState::CommandListModal;
                 break;
-            case 4: // EXIT
+            case 5: // EXIT
                 m_quitRequested = true;
                 break;
         }
@@ -517,6 +759,7 @@ private:
         // Menu Options
         const std::vector<std::string> options = {
             "VERSUS BATTLE (LOCAL 2P)",
+            "ONLINE / LAN MULTIPLAYER",
             "VS CPU (SINGLE PLAYER)",
             "PRACTICE / TRAINING",
             "COMMAND LIST & MOVES",
@@ -525,11 +768,11 @@ private:
 
         for (size_t i = 0; i < options.size(); ++i) {
             bool isSelected = (static_cast<int>(i) == m_titleSelectedIdx);
-            float btnY = 320.0f + i * 62.0f;
+            float btnY = 300.0f + i * 54.0f;
 
-            sf::RectangleShape btn(sf::Vector2f(440.0f, 48.0f));
-            btn.setOrigin(sf::Vector2f(220.0f, 24.0f));
-            btn.setPosition(sf::Vector2f(800.0f, btnY + 24.0f));
+            sf::RectangleShape btn(sf::Vector2f(440.0f, 42.0f));
+            btn.setOrigin(sf::Vector2f(220.0f, 21.0f));
+            btn.setPosition(sf::Vector2f(800.0f, btnY + 21.0f));
 
             if (isSelected) {
                 btn.setFillColor(sf::Color(30, 42, 65, 240));
@@ -547,14 +790,30 @@ private:
             optText.setStyle(sf::Text::Bold);
             optText.setFillColor(isSelected ? sf::Color(255, 255, 255) : sf::Color(190, 205, 225));
             optText.setOrigin(sf::Vector2f(optText.getLocalBounds().size.x * 0.5f, optText.getLocalBounds().size.y * 0.5f + 3.0f));
-            optText.setPosition(sf::Vector2f(800.0f, btnY + 24.0f));
+            optText.setPosition(sf::Vector2f(800.0f, btnY + 21.0f));
             window.draw(optText);
 
-            // "COMING SOON" small pill on CPU option
+            // "NEW / NETPLAY" pill on Online option (index 1)
             if (i == 1) {
+                sf::RectangleShape netPill(sf::Vector2f(95.0f, 18.0f));
+                netPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
+                netPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
+                netPill.setFillColor(sf::Color(30, 160, 240));
+                netPill.setOutlineColor(sf::Color(255, 215, 60));
+                netPill.setOutlineThickness(1.2f);
+                window.draw(netPill);
+
+                sf::Text netText(*m_font, "NEW / NETPLAY", 9);
+                netText.setStyle(sf::Text::Bold);
+                netText.setFillColor(sf::Color::White);
+                netText.setPosition(sf::Vector2f(1034.0f, btnY + 15.0f));
+                window.draw(netText);
+            }
+            // "COMING SOON" small pill on CPU option (index 2)
+            else if (i == 2) {
                 sf::RectangleShape csPill(sf::Vector2f(95.0f, 18.0f));
                 csPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
-                csPill.setPosition(sf::Vector2f(1030.0f, btnY + 24.0f));
+                csPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
                 csPill.setFillColor(sf::Color(220, 50, 50));
                 csPill.setOutlineColor(sf::Color(255, 215, 60));
                 csPill.setOutlineThickness(1.2f);
@@ -563,7 +822,7 @@ private:
                 sf::Text csText(*m_font, "COMING SOON", 9);
                 csText.setStyle(sf::Text::Bold);
                 csText.setFillColor(sf::Color::White);
-                csText.setPosition(sf::Vector2f(1036.0f, btnY + 18.0f));
+                csText.setPosition(sf::Vector2f(1036.0f, btnY + 15.0f));
                 window.draw(csText);
             }
 
@@ -572,7 +831,7 @@ private:
                 sf::Text arrow(*m_font, ">", 20);
                 arrow.setStyle(sf::Text::Bold);
                 arrow.setFillColor(sf::Color(255, 215, 60));
-                arrow.setPosition(sf::Vector2f(595.0f, btnY + 11.0f));
+                arrow.setPosition(sf::Vector2f(595.0f, btnY + 8.0f));
                 window.draw(arrow);
             }
         }
@@ -583,6 +842,286 @@ private:
         hint.setOrigin(sf::Vector2f(hint.getLocalBounds().size.x * 0.5f, 0.0f));
         hint.setPosition(sf::Vector2f(800.0f, 840.0f));
         window.draw(hint);
+    }
+
+    // -------------------------------------------------------------------------
+    // 1.5 ONLINE LOBBY MODAL
+    // -------------------------------------------------------------------------
+    void drawOnlineLobbyModal(sf::RenderWindow& window) {
+        // Dark translucent overlay
+        sf::RectangleShape mask(sf::Vector2f(1600.0f, 900.0f));
+        mask.setFillColor(sf::Color(8, 10, 16, 235));
+        window.draw(mask);
+
+        // Main modal container (1200 x 740)
+        sf::RectangleShape box(sf::Vector2f(1200.0f, 740.0f));
+        box.setOrigin(sf::Vector2f(600.0f, 370.0f));
+        box.setPosition(sf::Vector2f(800.0f, 450.0f));
+        box.setFillColor(sf::Color(14, 18, 28, 250));
+        box.setOutlineColor(sf::Color(45, 145, 255));
+        box.setOutlineThickness(3.0f);
+        window.draw(box);
+
+        // Header Title
+        sf::Text title(*m_font, "ONLINE & LAN MULTIPLAYER LOBBY", 26);
+        title.setStyle(sf::Text::Bold);
+        title.setFillColor(sf::Color::White);
+        title.setOutlineColor(sf::Color(45, 145, 255));
+        title.setOutlineThickness(2.5f);
+        title.setOrigin(sf::Vector2f(title.getLocalBounds().size.x * 0.5f, 0.0f));
+        title.setPosition(sf::Vector2f(800.0f, 105.0f));
+        window.draw(title);
+
+        sf::Text sub(*m_font, "DIRECT HIGH-SPEED UDP / TCP PEER-TO-PEER // ZERO CLOUD REQUIREMENT", 12);
+        sub.setFillColor(sf::Color(255, 215, 60));
+        sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
+        sub.setPosition(sf::Vector2f(800.0f, 145.0f));
+        window.draw(sub);
+
+        // Status Banner Bar
+        float bannerY = 175.0f;
+        sf::RectangleShape statusBg(sf::Vector2f(1100.0f, 38.0f));
+        statusBg.setOrigin(sf::Vector2f(550.0f, 19.0f));
+        statusBg.setPosition(sf::Vector2f(800.0f, bannerY + 19.0f));
+
+        ConnectionStatus status = m_netManager ? m_netManager->getStatus() : ConnectionStatus::Disconnected;
+        sf::Color statusOutlineCol(55, 70, 95);
+        sf::Color statusTextCol(180, 200, 225);
+        std::string statusStr = m_netManager ? m_netManager->getStatusMessage() : "Disconnected";
+
+        if (status == ConnectionStatus::Listening) {
+            statusOutlineCol = sf::Color(255, 200, 40);
+            statusTextCol = sf::Color(255, 225, 100);
+            statusBg.setFillColor(sf::Color(40, 32, 16));
+        } else if (status == ConnectionStatus::Connecting) {
+            statusOutlineCol = sf::Color(45, 165, 255);
+            statusTextCol = sf::Color(140, 215, 255);
+            statusBg.setFillColor(sf::Color(18, 30, 48));
+        } else if (status == ConnectionStatus::Connected) {
+            statusOutlineCol = sf::Color(50, 230, 120);
+            statusTextCol = sf::Color(120, 255, 170);
+            statusBg.setFillColor(sf::Color(16, 40, 24));
+            statusStr += " | PING: " + std::to_string(static_cast<int>(m_netManager->getPingMs())) + " ms";
+        } else {
+            statusBg.setFillColor(sf::Color(22, 28, 40));
+        }
+
+        statusBg.setOutlineColor(statusOutlineCol);
+        statusBg.setOutlineThickness(1.8f);
+        window.draw(statusBg);
+
+        sf::Text statusText(*m_font, statusStr, 13);
+        statusText.setStyle(sf::Text::Bold);
+        statusText.setFillColor(statusTextCol);
+        statusText.setOrigin(sf::Vector2f(statusText.getLocalBounds().size.x * 0.5f, statusText.getLocalBounds().size.y * 0.5f + 2.0f));
+        statusText.setPosition(sf::Vector2f(800.0f, bannerY + 19.0f));
+        window.draw(statusText);
+
+        // ---------------------------------------------------------------------
+        // LEFT CARD: HOST MATCH (Player 1)
+        // ---------------------------------------------------------------------
+        float cardY = 240.0f;
+        float cardW = 520.0f;
+        float cardH = 390.0f;
+        float leftX = 250.0f;
+        float rightX = 830.0f;
+
+        sf::RectangleShape hostCard(sf::Vector2f(cardW, cardH));
+        hostCard.setPosition(sf::Vector2f(leftX, cardY));
+        hostCard.setFillColor(sf::Color(20, 26, 38));
+        hostCard.setOutlineColor(sf::Color(45, 145, 255));
+        hostCard.setOutlineThickness(2.0f);
+        window.draw(hostCard);
+
+        sf::Text hostTitle(*m_font, "HOST MATCH (PLAYER 1)", 18);
+        hostTitle.setStyle(sf::Text::Bold);
+        hostTitle.setFillColor(sf::Color(80, 180, 255));
+        hostTitle.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 20.0f));
+        window.draw(hostTitle);
+
+        sf::Text hostDesc(*m_font, 
+            "Runs the authoritative Box2D physics simulation.\n"
+            "Share your Local or Public IP with Player 2 to join.", 12);
+        hostDesc.setFillColor(sf::Color(190, 205, 225));
+        hostDesc.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 54.0f));
+        window.draw(hostDesc);
+
+        // Local IP Display Area
+        sf::Text ipLabel(*m_font, "YOUR IP ADDRESS (SHARE WITH OPPONENT):", 11);
+        ipLabel.setStyle(sf::Text::Bold);
+        ipLabel.setFillColor(sf::Color(255, 215, 60));
+        ipLabel.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 115.0f));
+        window.draw(ipLabel);
+
+        sf::RectangleShape ipDisplayBg(sf::Vector2f(470.0f, 44.0f));
+        ipDisplayBg.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 138.0f));
+        ipDisplayBg.setFillColor(sf::Color(12, 16, 24));
+        ipDisplayBg.setOutlineColor(sf::Color(55, 75, 105));
+        ipDisplayBg.setOutlineThickness(1.5f);
+        window.draw(ipDisplayBg);
+
+        std::string myIp = m_netManager ? m_netManager->getLocalIpString() : "127.0.0.1";
+        sf::Text myIpText(*m_font, myIp + "  (Port 24800)", 17);
+        myIpText.setStyle(sf::Text::Bold);
+        myIpText.setFillColor(sf::Color(255, 255, 255));
+        myIpText.setPosition(sf::Vector2f(leftX + 38.0f, cardY + 148.0f));
+        window.draw(myIpText);
+
+        sf::Text hostInfo(*m_font, 
+            "Network Protocol: TCP 24800 / UDP 24801\n"
+            "LAN: Works out of the box!\n"
+            "Internet: Requires Port Forwarding / Radmin / Tailscale", 11);
+        hostInfo.setFillColor(sf::Color(140, 160, 185));
+        hostInfo.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 205.0f));
+        window.draw(hostInfo);
+
+        // Host Button
+        bool isHostActive = (m_netManager && (m_netManager->getStatus() == ConnectionStatus::Listening || (m_netManager->isHost() && m_netManager->isConnected())));
+        sf::FloatRect hostBtnRect(sf::Vector2f(leftX + 24.0f, cardY + 305.0f), sf::Vector2f(470.0f, 48.0f));
+        bool hostHover = hostBtnRect.contains(m_mousePos);
+
+        sf::RectangleShape hostBtn(sf::Vector2f(470.0f, 48.0f));
+        hostBtn.setPosition(sf::Vector2f(leftX + 24.0f, cardY + 305.0f));
+        if (isHostActive) {
+            hostBtn.setFillColor(hostHover ? sf::Color(230, 60, 60) : sf::Color(190, 40, 40));
+            hostBtn.setOutlineColor(sf::Color(255, 120, 120));
+        } else {
+            hostBtn.setFillColor(hostHover ? sf::Color(45, 145, 255) : sf::Color(28, 105, 210));
+            hostBtn.setOutlineColor(hostHover ? sf::Color(255, 215, 60) : sf::Color(80, 180, 255));
+        }
+        hostBtn.setOutlineThickness(hostHover ? 2.5f : 1.5f);
+        window.draw(hostBtn);
+
+        sf::Text hostBtnText(*m_font, isHostActive ? "STOP HOSTING" : "START HOSTING MATCH", 15);
+        hostBtnText.setStyle(sf::Text::Bold);
+        hostBtnText.setFillColor(sf::Color::White);
+        hostBtnText.setOrigin(sf::Vector2f(hostBtnText.getLocalBounds().size.x * 0.5f, hostBtnText.getLocalBounds().size.y * 0.5f + 2.0f));
+        hostBtnText.setPosition(sf::Vector2f(leftX + 24.0f + 235.0f, cardY + 329.0f));
+        window.draw(hostBtnText);
+
+        // ---------------------------------------------------------------------
+        // RIGHT CARD: JOIN MATCH (Player 2)
+        // ---------------------------------------------------------------------
+        sf::RectangleShape joinCard(sf::Vector2f(cardW, cardH));
+        joinCard.setPosition(sf::Vector2f(rightX, cardY));
+        joinCard.setFillColor(sf::Color(20, 26, 38));
+        joinCard.setOutlineColor(sf::Color(245, 55, 65));
+        joinCard.setOutlineThickness(2.0f);
+        window.draw(joinCard);
+
+        sf::Text joinTitle(*m_font, "JOIN MATCH (PLAYER 2)", 18);
+        joinTitle.setStyle(sf::Text::Bold);
+        joinTitle.setFillColor(sf::Color(255, 95, 105));
+        joinTitle.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 20.0f));
+        window.draw(joinTitle);
+
+        sf::Text joinDesc(*m_font, 
+            "Connects to an existing host on LAN or direct IP.\n"
+            "You play as Player 2 using standard keyboard controls!", 12);
+        joinDesc.setFillColor(sf::Color(190, 205, 225));
+        joinDesc.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 54.0f));
+        window.draw(joinDesc);
+
+        // Target IP Input Field
+        sf::Text targetIpLabel(*m_font, "TARGET HOST IP ADDRESS:", 11);
+        targetIpLabel.setStyle(sf::Text::Bold);
+        targetIpLabel.setFillColor(sf::Color(255, 215, 60));
+        targetIpLabel.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 115.0f));
+        window.draw(targetIpLabel);
+
+        sf::FloatRect ipInputRect(sf::Vector2f(rightX + 24.0f, cardY + 138.0f), sf::Vector2f(470.0f, 44.0f));
+        bool ipHover = ipInputRect.contains(m_mousePos);
+        sf::RectangleShape ipInputBg(sf::Vector2f(470.0f, 44.0f));
+        ipInputBg.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 138.0f));
+        ipInputBg.setFillColor(sf::Color(12, 16, 24));
+        if (m_ipInputFocused) {
+            ipInputBg.setOutlineColor(sf::Color(255, 215, 60));
+            ipInputBg.setOutlineThickness(2.5f);
+        } else {
+            ipInputBg.setOutlineColor(ipHover ? sf::Color(120, 150, 190) : sf::Color(55, 75, 105));
+            ipInputBg.setOutlineThickness(1.5f);
+        }
+        window.draw(ipInputBg);
+
+        float blink = (std::sin(m_animTime * 7.0f) + 1.0f) * 0.5f;
+        std::string ipDisplayStr = m_joinIpInput + (m_ipInputFocused && blink > 0.4f ? "_" : "");
+        sf::Text ipInputText(*m_font, ipDisplayStr.empty() ? "Click to enter Host IP (e.g. 127.0.0.1)" : ipDisplayStr, 16);
+        ipInputText.setStyle(sf::Text::Bold);
+        ipInputText.setFillColor(m_joinIpInput.empty() ? sf::Color(110, 125, 145) : sf::Color(255, 255, 255));
+        ipInputText.setPosition(sf::Vector2f(rightX + 38.0f, cardY + 148.0f));
+        window.draw(ipInputText);
+
+        sf::Text joinHelp(*m_font, 
+            "Quick Testing: Use 127.0.0.1 to play against 2nd instance locally!\n"
+            "Press [Enter] or Click to Connect. Paste with [Ctrl+V].", 11);
+        joinHelp.setFillColor(sf::Color(140, 160, 185));
+        joinHelp.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 205.0f));
+        window.draw(joinHelp);
+
+        // Join Button
+        bool isClientActive = (m_netManager && (m_netManager->getStatus() == ConnectionStatus::Connecting || (m_netManager->isClient() && m_netManager->isConnected())));
+        sf::FloatRect joinBtnRect(sf::Vector2f(rightX + 24.0f, cardY + 305.0f), sf::Vector2f(470.0f, 48.0f));
+        bool joinHover = joinBtnRect.contains(m_mousePos);
+
+        sf::RectangleShape joinBtn(sf::Vector2f(470.0f, 48.0f));
+        joinBtn.setPosition(sf::Vector2f(rightX + 24.0f, cardY + 305.0f));
+        if (isClientActive) {
+            joinBtn.setFillColor(joinHover ? sf::Color(230, 60, 60) : sf::Color(190, 40, 40));
+            joinBtn.setOutlineColor(sf::Color(255, 120, 120));
+        } else {
+            joinBtn.setFillColor(joinHover ? sf::Color(50, 190, 110) : sf::Color(35, 150, 85));
+            joinBtn.setOutlineColor(joinHover ? sf::Color(255, 215, 60) : sf::Color(80, 220, 130));
+        }
+        joinBtn.setOutlineThickness(joinHover ? 2.5f : 1.5f);
+        window.draw(joinBtn);
+
+        sf::Text joinBtnText(*m_font, isClientActive ? "DISCONNECT" : "CONNECT TO HOST", 15);
+        joinBtnText.setStyle(sf::Text::Bold);
+        joinBtnText.setFillColor(sf::Color::White);
+        joinBtnText.setOrigin(sf::Vector2f(joinBtnText.getLocalBounds().size.x * 0.5f, joinBtnText.getLocalBounds().size.y * 0.5f + 2.0f));
+        joinBtnText.setPosition(sf::Vector2f(rightX + 24.0f + 235.0f, cardY + 329.0f));
+        window.draw(joinBtnText);
+
+        // ---------------------------------------------------------------------
+        // BOTTOM ACTION ROW: PROCEED & BACK
+        // ---------------------------------------------------------------------
+        // Back Button
+        sf::FloatRect backBtnRect(sf::Vector2f(250.0f, 660.0f), sf::Vector2f(220.0f, 46.0f));
+        bool backHover = backBtnRect.contains(m_mousePos);
+        sf::RectangleShape backBtn(sf::Vector2f(220.0f, 46.0f));
+        backBtn.setPosition(sf::Vector2f(250.0f, 660.0f));
+        backBtn.setFillColor(backHover ? sf::Color(45, 55, 75) : sf::Color(26, 32, 45));
+        backBtn.setOutlineColor(backHover ? sf::Color(255, 215, 60) : sf::Color(70, 85, 115));
+        backBtn.setOutlineThickness(backHover ? 2.5f : 1.5f);
+        window.draw(backBtn);
+
+        sf::Text backText(*m_font, "< BACK TO MENU", 14);
+        backText.setStyle(sf::Text::Bold);
+        backText.setFillColor(backHover ? sf::Color(255, 215, 60) : sf::Color(200, 215, 235));
+        backText.setOrigin(sf::Vector2f(backText.getLocalBounds().size.x * 0.5f, backText.getLocalBounds().size.y * 0.5f + 2.0f));
+        backText.setPosition(sf::Vector2f(360.0f, 683.0f));
+        window.draw(backText);
+
+        // Proceed Button (Only active when Connected)
+        if (m_netManager && m_netManager->isConnected()) {
+            float procPulse = (std::sin(m_animTime * 6.0f) + 1.0f) * 0.5f;
+            sf::FloatRect procBtnRect(sf::Vector2f(500.0f, 655.0f), sf::Vector2f(600.0f, 54.0f));
+            bool procHover = procBtnRect.contains(m_mousePos);
+
+            sf::RectangleShape procBtn(sf::Vector2f(600.0f, 54.0f));
+            procBtn.setPosition(sf::Vector2f(500.0f, 655.0f));
+            procBtn.setFillColor(procHover ? sf::Color(40, 200, 110) : sf::Color(25, 160, 85));
+            procBtn.setOutlineColor(sf::Color(255, 215, 60));
+            procBtn.setOutlineThickness(2.5f + procPulse * 1.5f);
+            window.draw(procBtn);
+
+            sf::Text procText(*m_font, "PROCEED TO CHARACTER SELECT  >>", 17);
+            procText.setStyle(sf::Text::Bold);
+            procText.setFillColor(sf::Color::White);
+            procText.setOrigin(sf::Vector2f(procText.getLocalBounds().size.x * 0.5f, procText.getLocalBounds().size.y * 0.5f + 2.0f));
+            procText.setPosition(sf::Vector2f(800.0f, 682.0f));
+            window.draw(procText);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -834,7 +1373,16 @@ private:
         header.setPosition(sf::Vector2f(800.0f, 30.0f));
         window.draw(header);
 
-        sf::Text sub(*m_font, "CLICK [PICK P1] / [PICK P2] ON CARDS OR PRESS J / ENTER TO LOCK IN", 12);
+        std::string subStr = "CLICK [PICK P1] / [PICK P2] ON CARDS OR PRESS J / ENTER TO LOCK IN";
+        if (m_gameMode == GameMode::Online && m_netManager) {
+            if (m_netManager->isHost()) {
+                subStr = "ONLINE MATCH // YOU ARE PLAYER 1 (HOST) - CHOOSE FIGHTER [J / SPACE TO LOCK]";
+            } else if (m_netManager->isClient()) {
+                int pingVal = static_cast<int>(m_netManager->getPingMs());
+                subStr = "ONLINE MATCH // YOU ARE PLAYER 2 (CLIENT) | PING: " + std::to_string(pingVal) + " ms - [J / SPACE TO LOCK]";
+            }
+        }
+        sf::Text sub(*m_font, subStr, 12);
         sub.setFillColor(sf::Color(255, 215, 60));
         sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
         sub.setPosition(sf::Vector2f(800.0f, 76.0f));
@@ -1415,6 +1963,11 @@ private:
     bool m_startMatchRequested{ false };
     bool m_restartMatchRequested{ false };
     bool m_quitRequested{ false };
+
+    NetworkManager* m_netManager{ nullptr };
+    std::string m_joinIpInput{ "127.0.0.1" };
+    bool m_ipInputFocused{ false };
+    bool m_lobbyStateDirty{ false };
 };
 
 } // namespace StickminGame

@@ -80,7 +80,8 @@ int main() {
         juiceFX.setFont(&hudFont);
     }
 
-    StickminGame::MenuManager menuManager(fontLoaded ? &hudFont : nullptr, &ragdollRenderer, &stageRenderer);
+    StickminGame::NetworkManager netManager;
+    StickminGame::MenuManager menuManager(fontLoaded ? &hudFont : nullptr, &ragdollRenderer, &stageRenderer, &netManager);
 
     // 3. Build Arena Geometry (Tekken-style flat combat arena with left & right boundary walls)
     // Floor
@@ -154,6 +155,42 @@ int main() {
 
         // 1. Update Menu Manager State
         menuManager.update(realDt);
+        netManager.update(realDt);
+
+        // Online Lobby & Lifecycle Synchronization
+        if (menuManager.getGameMode() == StickminGame::GameMode::Online && netManager.isConnected()) {
+            StickminGame::LobbySyncData peerLobby;
+            if (netManager.consumeLobbySync(peerLobby)) {
+                if (netManager.isClient()) {
+                    menuManager.setP1CharIndex(peerLobby.p1CharIdx);
+                    menuManager.setP1Ready(peerLobby.p1Ready);
+                    menuManager.setSelectedStageIndex(peerLobby.stageIdx);
+                } else if (netManager.isHost()) {
+                    menuManager.setP2CharIndex(peerLobby.p2CharIdx);
+                    menuManager.setP2Ready(peerLobby.p2Ready);
+                }
+            }
+
+            if (menuManager.consumeLobbyDirty()) {
+                StickminGame::LobbySyncData myLobby;
+                myLobby.p1CharIdx = static_cast<uint8_t>(menuManager.getP1CharIndex());
+                myLobby.p2CharIdx = static_cast<uint8_t>(menuManager.getP2CharIndex());
+                myLobby.stageIdx = static_cast<uint8_t>(menuManager.getSelectedStageIndex());
+                myLobby.p1Ready = menuManager.isP1Ready();
+                myLobby.p2Ready = menuManager.isP2Ready();
+                netManager.sendLobbySync(myLobby);
+            }
+
+            if (netManager.isClient() && netManager.consumeMatchStart()) {
+                stageRenderer.setStage(static_cast<RagdollEngine::StageType>(menuManager.getSelectedStageIndex()));
+                menuManager.setState(StickminGame::MenuState::VersusIntro);
+            }
+
+            if (netManager.consumeReturnToLobby()) {
+                menuManager.setState(StickminGame::MenuState::OnlineLobbyModal);
+            }
+        }
+
         if (menuManager.consumeQuitRequested()) {
             window.close();
         }
@@ -193,6 +230,10 @@ int main() {
                 sf::Vector2i pixel(mouseMoved->position.x, mouseMoved->position.y);
                 sf::Vector2f uiMousePos = window.mapPixelToCoords(pixel, uiView);
                 menuManager.handleMouseMove(uiMousePos);
+            }
+
+            if (const auto* textEntered = event->getIf<sf::Event::TextEntered>()) {
+                menuManager.handleTextEntered(textEntered->unicode);
             }
 
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
