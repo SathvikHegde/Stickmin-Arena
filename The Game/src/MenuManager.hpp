@@ -59,6 +59,8 @@ public:
             m_p1Ready = false;
             m_p2Ready = false;
             m_lockinTimer = 0.0f;
+        } else if (s == MenuState::VersusIntro) {
+            m_versusTimer = 2.2f;
         }
         m_state = s;
     }
@@ -124,18 +126,28 @@ public:
             }
         }
 
+        // Online Lobby: auto-transition to Character Select once connected
+        if (m_state == MenuState::OnlineLobbyModal && m_netManager && m_netManager->isConnected()) {
+            m_lobbyConnectedTimer += dt;
+            if (m_lobbyConnectedTimer >= 0.5f) {
+                m_p1Ready = false;
+                m_p2Ready = false;
+                m_gameMode = GameMode::Online;
+                m_state = MenuState::CharacterSelect;
+                m_lobbyStateDirty = true;
+                m_lobbyConnectedTimer = 0.0f;
+            }
+        } else {
+            m_lobbyConnectedTimer = 0.0f;
+        }
+
         // When both characters are locked in, small dramatic flash before stage select
         if (m_state == MenuState::CharacterSelect && m_p1Ready && m_p2Ready) {
             m_lockinTimer += dt;
             if (m_lockinTimer >= 0.55f) {
-                if (m_gameMode == GameMode::Online) {
-                    if (m_netManager && m_netManager->isHost()) {
-                        m_state = MenuState::StageSelect;
-                    }
-                } else {
-                    m_state = MenuState::StageSelect;
-                }
+                m_state = MenuState::StageSelect;
                 m_lockinTimer = 0.0f;
+                m_lobbyStateDirty = true;
             }
         } else {
             m_lockinTimer = 0.0f;
@@ -275,24 +287,35 @@ public:
         }
         // 5. Stage Select
         else if (m_state == MenuState::StageSelect) {
-            if (key == sf::Keyboard::Key::A || key == sf::Keyboard::Key::Left) {
-                m_stageIdx = (m_stageIdx + 2) % 3;
-                if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
-            } else if (key == sf::Keyboard::Key::D || key == sf::Keyboard::Key::Right) {
-                m_stageIdx = (m_stageIdx + 1) % 3;
-                if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
-            } else if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::J) {
-                if (m_gameMode == GameMode::Online) {
-                    if (m_netManager && m_netManager->isHost()) {
-                        m_netManager->sendMatchStart();
-                    }
+            if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isClient()) {
+                // Client spectates stage selection, Host confirms
+                if (key == sf::Keyboard::Key::Escape) {
+                    m_p1Ready = false;
+                    m_p2Ready = false;
+                    m_state = MenuState::CharacterSelect;
+                    m_lobbyStateDirty = true;
                 }
-                m_state = MenuState::VersusIntro;
-                m_versusTimer = 2.2f;
-            } else if (key == sf::Keyboard::Key::Escape) {
-                m_p1Ready = false;
-                m_p2Ready = false;
-                m_state = MenuState::CharacterSelect;
+            } else {
+                if (key == sf::Keyboard::Key::A || key == sf::Keyboard::Key::Left) {
+                    m_stageIdx = (m_stageIdx + 2) % 3;
+                    if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
+                    m_lobbyStateDirty = true;
+                } else if (key == sf::Keyboard::Key::D || key == sf::Keyboard::Key::Right) {
+                    m_stageIdx = (m_stageIdx + 1) % 3;
+                    if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
+                    m_lobbyStateDirty = true;
+                } else if (key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::J) {
+                    if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isHost()) {
+                        m_netManager->sendMatchStart(static_cast<uint8_t>(m_stageIdx), static_cast<uint8_t>(m_p1CharIdx), static_cast<uint8_t>(m_p2CharIdx));
+                    }
+                    m_state = MenuState::VersusIntro;
+                    m_versusTimer = 2.2f;
+                } else if (key == sf::Keyboard::Key::Escape) {
+                    m_p1Ready = false;
+                    m_p2Ready = false;
+                    m_state = MenuState::CharacterSelect;
+                    m_lobbyStateDirty = true;
+                }
             }
         }
         // 6. Versus Intro
@@ -344,15 +367,7 @@ public:
                 }
             }
         } else if (m_state == MenuState::StageSelect) {
-            for (int i = 0; i < 3; ++i) {
-                sf::FloatRect cardRect(sf::Vector2f(170.0f + i * 430.0f, 250.0f), sf::Vector2f(390.0f, 370.0f));
-                if (cardRect.contains(mousePos)) {
-                    if (m_stageIdx != i) {
-                        m_stageIdx = i;
-                        if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
-                    }
-                }
-            }
+            // Hover position tracked in m_mousePos; stage is explicitly chosen on click or keypress
         }
     }
 
@@ -571,6 +586,12 @@ public:
                 m_p1Ready = false;
                 m_p2Ready = false;
                 m_state = MenuState::CharacterSelect;
+                m_lobbyStateDirty = true;
+                return true;
+            }
+
+            // In online multiplayer, only Host has authority to select and confirm stages
+            if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isClient()) {
                 return true;
             }
 
@@ -584,9 +605,10 @@ public:
                     if (m_stageIdx != i) {
                         m_stageIdx = i;
                         if (m_stageRenderer) m_stageRenderer->setStage(static_cast<RagdollEngine::StageType>(m_stageIdx));
+                        m_lobbyStateDirty = true;
                     } else {
                         if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isHost()) {
-                            m_netManager->sendMatchStart();
+                            m_netManager->sendMatchStart(static_cast<uint8_t>(m_stageIdx), static_cast<uint8_t>(m_p1CharIdx), static_cast<uint8_t>(m_p2CharIdx));
                         }
                         m_state = MenuState::VersusIntro;
                         m_versusTimer = 2.2f;
@@ -698,15 +720,27 @@ private:
                 m_state = MenuState::CommandListModal;
                 break;
             case 2: // RESTART ROUND
+                if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isConnected()) {
+                    m_netManager->sendRematch();
+                }
                 m_restartMatchRequested = true;
                 m_state = MenuState::Battle;
                 break;
             case 3: // CHARACTER SELECT
-                m_p1Ready = false;
-                m_p2Ready = (m_gameMode == GameMode::Practice);
-                m_state = MenuState::CharacterSelect;
+                if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isConnected()) {
+                    m_netManager->sendReturnToLobby();
+                    m_state = MenuState::OnlineLobbyModal;
+                } else {
+                    m_p1Ready = false;
+                    m_p2Ready = (m_gameMode == GameMode::Practice);
+                    m_state = MenuState::CharacterSelect;
+                }
                 break;
             case 4: // MAIN MENU
+                if (m_gameMode == GameMode::Online && m_netManager && m_netManager->isConnected()) {
+                    m_netManager->sendReturnToLobby();
+                    m_netManager->disconnect();
+                }
                 m_state = MenuState::TitleScreen;
                 break;
         }
@@ -1630,7 +1664,7 @@ private:
         }
         window.draw(statusBtn);
 
-        std::string statusStr = isReady ? "READY! [LOCKED IN]" : (playerNum == 1 ? "P1: PRESS [J] TO LOCK" : "P2: PRESS [ENTER] TO LOCK");
+        std::string statusStr = isReady ? "READY! [LOCKED IN]" : (playerNum == 1 ? "P1: PRESS [J] TO LOCK" : (m_gameMode == GameMode::Online ? "P2: PRESS [J] TO LOCK" : "P2: PRESS [ENTER] TO LOCK"));
         sf::Text statusText(*m_font, statusStr, 13);
         statusText.setStyle(sf::Text::Bold);
         statusText.setFillColor(sf::Color::White);
@@ -1660,11 +1694,22 @@ private:
         header.setPosition(sf::Vector2f(800.0f, 35.0f));
         window.draw(header);
 
-        sf::Text sub(*m_font, "CHOOSE ARENA // USE [A/D] OR CLICK TO SELECT // PRESS [ENTER] TO COMMENCE BATTLE", 12);
-        sub.setFillColor(sf::Color(255, 215, 60));
-        sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
-        sub.setPosition(sf::Vector2f(800.0f, 82.0f));
-        window.draw(sub);
+        bool isOnlineClient = (m_gameMode == GameMode::Online && m_netManager && m_netManager->isClient());
+
+        if (isOnlineClient) {
+            sf::Text sub(*m_font, "HOST IS CHOOSING BATTLEGROUND // WAITING FOR HOST TO COMMENCE...", 13);
+            sub.setStyle(sf::Text::Bold);
+            sub.setFillColor(sf::Color(80, 220, 255));
+            sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
+            sub.setPosition(sf::Vector2f(800.0f, 82.0f));
+            window.draw(sub);
+        } else {
+            sf::Text sub(*m_font, "CHOOSE ARENA // USE [A/D] OR CLICK TO SELECT // PRESS [ENTER] TO COMMENCE BATTLE", 12);
+            sub.setFillColor(sf::Color(255, 215, 60));
+            sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
+            sub.setPosition(sf::Vector2f(800.0f, 82.0f));
+            window.draw(sub);
+        }
 
         // 3 Stage Cards
         struct StageInfo {
@@ -1696,8 +1741,9 @@ private:
                 card.setOutlineColor(stages[i].color);
                 card.setOutlineThickness(3.5f);
             } else {
-                card.setOutlineColor(sf::Color(55, 65, 85));
-                card.setOutlineThickness(1.5f);
+                bool cardHover = !isOnlineClient && sf::FloatRect(sf::Vector2f(cx, cy), sf::Vector2f(cardW, cardH)).contains(m_mousePos);
+                card.setOutlineColor(cardHover ? sf::Color(140, 160, 200) : sf::Color(55, 65, 85));
+                card.setOutlineThickness(cardHover ? 2.0f : 1.5f);
             }
             window.draw(card);
 
@@ -1727,17 +1773,25 @@ private:
             // Confirmation Pill on Selected
             if (isSelected) {
                 sf::FloatRect pillRect(sf::Vector2f(cx + 18.0f, cy + cardH - 62.0f), sf::Vector2f(cardW - 36.0f, 44.0f));
-                bool pillHover = pillRect.contains(m_mousePos);
+                bool pillHover = !isOnlineClient && pillRect.contains(m_mousePos);
                 sf::RectangleShape pill(sf::Vector2f(cardW - 36.0f, 44.0f));
                 pill.setPosition(sf::Vector2f(cx + 18.0f, cy + cardH - 62.0f));
-                pill.setFillColor(pillHover ? sf::Color(255, 215, 60) : stages[i].color);
-                pill.setOutlineColor(pillHover ? sf::Color::White : sf::Color::Transparent);
-                pill.setOutlineThickness(pillHover ? 2.5f : 0.0f);
+
+                if (isOnlineClient) {
+                    pill.setFillColor(sf::Color(16, 28, 44, 220));
+                    pill.setOutlineColor(sf::Color(80, 200, 255));
+                    pill.setOutlineThickness(1.5f);
+                } else {
+                    pill.setFillColor(pillHover ? sf::Color(255, 215, 60) : stages[i].color);
+                    pill.setOutlineColor(pillHover ? sf::Color::White : sf::Color::Transparent);
+                    pill.setOutlineThickness(pillHover ? 2.5f : 0.0f);
+                }
                 window.draw(pill);
 
-                sf::Text pillText(*m_font, "[ PRESS ENTER OR CLICK TO COMMENCE ]", 13);
+                std::string pillStr = isOnlineClient ? "[ WAITING FOR HOST TO START ]" : "[ PRESS ENTER OR CLICK TO COMMENCE ]";
+                sf::Text pillText(*m_font, pillStr, 13);
                 pillText.setStyle(sf::Text::Bold);
-                pillText.setFillColor(pillHover ? sf::Color(10, 12, 16) : sf::Color::White);
+                pillText.setFillColor(isOnlineClient ? sf::Color(80, 220, 255) : (pillHover ? sf::Color(10, 12, 16) : sf::Color::White));
                 pillText.setOrigin(sf::Vector2f(pillText.getLocalBounds().size.x * 0.5f, pillText.getLocalBounds().size.y * 0.5f + 3.0f));
                 pillText.setPosition(sf::Vector2f(cx + cardW * 0.5f, cy + cardH - 40.0f));
                 window.draw(pillText);
@@ -1968,6 +2022,7 @@ private:
     std::string m_joinIpInput{ "127.0.0.1" };
     bool m_ipInputFocused{ false };
     bool m_lobbyStateDirty{ false };
+    float m_lobbyConnectedTimer{ 0.0f };
 };
 
 } // namespace StickminGame

@@ -139,6 +139,20 @@ inline sf::Packet& operator>>(sf::Packet& packet, FighterSnapshotData& f) {
     return packet;
 }
 
+struct MatchStartData {
+    uint8_t stageIdx{ 0 };
+    uint8_t p1CharIdx{ 0 };
+    uint8_t p2CharIdx{ 1 };
+};
+
+inline sf::Packet& operator<<(sf::Packet& packet, const MatchStartData& d) {
+    return packet << d.stageIdx << d.p1CharIdx << d.p2CharIdx;
+}
+
+inline sf::Packet& operator>>(sf::Packet& packet, MatchStartData& d) {
+    return packet >> d.stageIdx >> d.p1CharIdx >> d.p2CharIdx;
+}
+
 struct WorldSnapshotData {
     uint32_t sequence{ 0 };
     uint8_t matchState{ 0 }; // Cast to/from MatchState
@@ -147,6 +161,7 @@ struct WorldSnapshotData {
     uint8_t roundWinner{ 0 };
     uint8_t p1RoundsWon{ 0 };
     uint8_t p2RoundsWon{ 0 };
+    uint8_t stageIdx{ 0 };
     FighterSnapshotData p1;
     FighterSnapshotData p2;
     std::vector<JuiceFXEvent> events;
@@ -154,7 +169,7 @@ struct WorldSnapshotData {
 
 inline sf::Packet& operator<<(sf::Packet& packet, const WorldSnapshotData& s) {
     packet << s.sequence << s.matchState << s.roundTimer << s.roundNumber << s.roundWinner
-           << s.p1RoundsWon << s.p2RoundsWon << s.p1 << s.p2;
+           << s.p1RoundsWon << s.p2RoundsWon << s.stageIdx << s.p1 << s.p2;
     uint16_t numEvents = static_cast<uint16_t>(s.events.size());
     packet << numEvents;
     for (const auto& ev : s.events) {
@@ -165,7 +180,7 @@ inline sf::Packet& operator<<(sf::Packet& packet, const WorldSnapshotData& s) {
 
 inline sf::Packet& operator>>(sf::Packet& packet, WorldSnapshotData& s) {
     packet >> s.sequence >> s.matchState >> s.roundTimer >> s.roundNumber >> s.roundWinner
-           >> s.p1RoundsWon >> s.p2RoundsWon >> s.p1 >> s.p2;
+           >> s.p1RoundsWon >> s.p2RoundsWon >> s.stageIdx >> s.p1 >> s.p2;
     uint16_t numEvents = 0;
     packet >> numEvents;
     s.events.resize(numEvents);

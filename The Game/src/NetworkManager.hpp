@@ -3,6 +3,8 @@
 #include "Fighter.hpp"
 #include "CombatManager.hpp"
 #include <RagdollEngine/Render/JuiceFX.hpp>
+#include <RagdollEngine/Render/StageRenderer.hpp>
+#include <RagdollEngine/Core/CameraDirector.hpp>
 
 #include <SFML/Network/TcpListener.hpp>
 #include <SFML/Network/TcpSocket.hpp>
@@ -114,7 +116,6 @@ public:
         // Connect with short timeout
         m_tcpSocket.setBlocking(true);
         sf::Socket::Status connectStatus = m_tcpSocket.connect(*m_remoteIp, m_remoteTcpPort, sf::seconds(2.5f));
-        m_tcpSocket.setBlocking(false);
 
         if (connectStatus == sf::Socket::Status::Done) {
             // Send ConnectRequest
@@ -123,9 +124,11 @@ public:
                       << NET_PROTOCOL_MAGIC << NET_PROTOCOL_VERSION << m_udpSocket.getLocalPort();
             (void)m_tcpSocket.send(reqPacket);
 
+            m_tcpSocket.setBlocking(false);
             m_statusMessage = "Connected to host! Synchronizing...";
             return true;
         } else {
+            m_tcpSocket.setBlocking(false);
             disconnect();
             m_status = ConnectionStatus::Failed;
             m_statusMessage = "Connection failed / timed out to " + hostIpStr;
@@ -168,10 +171,12 @@ public:
             }
         }
 
-        if (m_status != ConnectionStatus::Connected) return;
+        // 2. Poll TCP Packets (Poll if Connected OR if Client is currently Connecting)
+        if (m_status == ConnectionStatus::Connecting || m_status == ConnectionStatus::Connected) {
+            pollTcpMessages();
+        }
 
-        // 2. Poll TCP Packets
-        pollTcpMessages();
+        if (m_status != ConnectionStatus::Connected) return;
 
         // 3. Poll UDP Packets
         pollUdpMessages();
@@ -209,17 +214,22 @@ public:
         return false;
     }
 
-    void sendMatchStart() {
+    void sendMatchStart(uint8_t stageIdx = 0, uint8_t p1CharIdx = 0, uint8_t p2CharIdx = 1) {
         if (!isConnected()) return;
         sf::Packet p;
         p << static_cast<uint8_t>(PacketType::MatchStart);
+        MatchStartData d{ stageIdx, p1CharIdx, p2CharIdx };
+        p << d;
         (void)m_tcpSocket.send(p);
     }
 
-    bool consumeMatchStart() {
-        bool val = m_matchStartReceived;
-        m_matchStartReceived = false;
-        return val;
+    bool consumeMatchStart(MatchStartData& outData) {
+        if (m_latestMatchStart.has_value()) {
+            outData = *m_latestMatchStart;
+            m_latestMatchStart = std::nullopt;
+            return true;
+        }
+        return false;
     }
 
     void sendRematch() {
@@ -302,7 +312,7 @@ public:
     // -------------------------------------------------------------------------
     // HIGH-LEVEL GAME SNAPSHOT BUILD & APPLY HELPERS
     // -------------------------------------------------------------------------
-    WorldSnapshotData buildSnapshot(const CombatManager& combat, Fighter& p1, Fighter& p2) {
+    WorldSnapshotData buildSnapshot(const CombatManager& combat, Fighter& p1, Fighter& p2, uint8_t stageIdx = 0) {
         WorldSnapshotData snap;
         snap.matchState = static_cast<uint8_t>(combat.getState());
         snap.roundTimer = combat.getRoundTimer();
@@ -310,6 +320,7 @@ public:
         snap.roundWinner = static_cast<uint8_t>(combat.getRoundWinner());
         snap.p1RoundsWon = static_cast<uint8_t>(p1.getRoundsWon());
         snap.p2RoundsWon = static_cast<uint8_t>(p2.getRoundsWon());
+        snap.stageIdx = stageIdx;
 
         // P1 Snapshot
         snap.p1.health = p1.getHealth();
@@ -336,11 +347,16 @@ public:
         return snap;
     }
 
-    void applySnapshot(const WorldSnapshotData& snap, CombatManager& combat, Fighter& p1, Fighter& p2, RagdollEngine::JuiceFX& juiceFX) {
+    void applySnapshot(const WorldSnapshotData& snap, CombatManager& combat, Fighter& p1, Fighter& p2, RagdollEngine::JuiceFX& juiceFX, RagdollEngine::CameraDirector* camera = nullptr, RagdollEngine::StageRenderer* stageRenderer = nullptr) {
+        MatchState prevState = combat.getState();
         combat.setState(static_cast<MatchState>(snap.matchState));
         combat.setRoundTimer(snap.roundTimer);
         combat.setRoundNumber(snap.roundNumber);
         combat.setRoundWinner(snap.roundWinner);
+
+        if (stageRenderer && stageRenderer->getCurrentStage() != static_cast<RagdollEngine::StageType>(snap.stageIdx)) {
+            stageRenderer->setStage(static_cast<RagdollEngine::StageType>(snap.stageIdx));
+        }
 
         p1.setHealth(snap.p1.health);
         p1.setGhostHealth(snap.p1.ghostHealth);
@@ -365,12 +381,25 @@ public:
             sf::Color col(ev.colorR, ev.colorG, ev.colorB);
             if (ev.type == JuiceEventType::ImpactHit) {
                 juiceFX.spawnImpact(sf::Vector2f(ev.posX, ev.posY), sf::Vector2f(ev.normalX, ev.normalY), col, false);
+                if (camera) camera->addTrauma(0.35f);
             } else if (ev.type == JuiceEventType::ElectricBurst) {
                 juiceFX.spawnElectricBurst(sf::Vector2f(ev.posX, ev.posY), col, 4, 32.0f);
+                if (camera) camera->addTrauma(0.40f);
             } else if (ev.type == JuiceEventType::FloatingText) {
                 juiceFX.spawnFloatingText(sf::Vector2f(ev.posX, ev.posY), ev.text, col, 1.6f);
             } else if (ev.type == JuiceEventType::ScreenFlash) {
                 juiceFX.triggerScreenFlash(0.14f, col);
+                if (camera) camera->addTrauma(0.50f);
+            }
+        }
+
+        // Dramatic KO presentation on Client
+        if (prevState != MatchState::RoundKO && combat.getState() == MatchState::RoundKO) {
+            if (camera) {
+                sf::Vector2f p1Pos = p1.getSkeleton()->getPositionPixels();
+                sf::Vector2f p2Pos = p2.getSkeleton()->getPositionPixels();
+                camera->triggerCinematicZoom(0.32f, 2.2f, (p1Pos.x < p2Pos.x ? -3.0f : 3.0f));
+                camera->addTrauma(0.85f);
             }
         }
     }
@@ -404,7 +433,7 @@ private:
 
     // Inbound queues
     std::optional<LobbySyncData> m_latestLobbySync;
-    bool m_matchStartReceived{ false };
+    std::optional<MatchStartData> m_latestMatchStart;
     bool m_rematchReceived{ false };
     bool m_returnToLobbyReceived{ false };
     std::optional<ClientInputData> m_latestClientInput;
@@ -422,7 +451,7 @@ private:
         m_pingMs = 0.0f;
         m_lastHeartbeatTimer = 0.0f;
         m_latestLobbySync = std::nullopt;
-        m_matchStartReceived = false;
+        m_latestMatchStart = std::nullopt;
         m_rematchReceived = false;
         m_returnToLobbyReceived = false;
         m_latestClientInput = std::nullopt;
@@ -474,6 +503,7 @@ private:
                     }
                     m_status = ConnectionStatus::Connected;
                     m_statusMessage = "Connected to host!";
+                    m_lastHeartbeatTimer = 0.0f;
                     break;
                 }
                 case PacketType::ConnectReject: {
@@ -507,7 +537,12 @@ private:
                     break;
                 }
                 case PacketType::MatchStart: {
-                    m_matchStartReceived = true;
+                    MatchStartData startData;
+                    if (packet >> startData) {
+                        m_latestMatchStart = startData;
+                    } else {
+                        m_latestMatchStart = MatchStartData{};
+                    }
                     break;
                 }
                 case PacketType::MatchRematch: {

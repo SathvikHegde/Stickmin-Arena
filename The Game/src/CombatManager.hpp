@@ -1,11 +1,14 @@
 #pragma once
 #include "Fighter.hpp"
+#include "NetworkProtocol.hpp"
 #include <RagdollEngine/Core/TimeManager.hpp>
 #include <RagdollEngine/Core/CameraDirector.hpp>
 #include <RagdollEngine/Render/JuiceFX.hpp>
 #include <RagdollEngine/Render/StageRenderer.hpp>
 #include <cmath>
 #include <algorithm>
+#include <vector>
+#include <string>
 
 namespace StickminGame {
 
@@ -91,6 +94,8 @@ public:
                 juiceFX.triggerScreenFlash(0.16f, sf::Color(255, 255, 255, 175));
                 sf::Vector2f koCenter = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -40.0f);
                 juiceFX.spawnFloatingText(koCenter, "K.O.!", sf::Color(255, 220, 40), 2.4f);
+                queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 175), 0.16f);
+                queueJuiceEvent(JuiceEventType::FloatingText, koCenter, sf::Vector2f(0.0f, 0.0f), sf::Color(255, 220, 40), 2.4f, "K.O.!");
             }
 
             // 3. Dynamic Slow-Mo Clash Engine (Tekken 7/8 Style)
@@ -127,6 +132,27 @@ public:
     int getRoundWinner() const { return m_roundWinner; }
     void setRoundWinner(int w) { m_roundWinner = w; }
 
+    std::vector<JuiceFXEvent> consumePendingJuiceEvents() {
+        std::vector<JuiceFXEvent> evs = std::move(m_pendingJuiceEvents);
+        m_pendingJuiceEvents.clear();
+        return evs;
+    }
+
+    void queueJuiceEvent(JuiceEventType type, sf::Vector2f pos, sf::Vector2f normal, sf::Color col, float intensity = 1.0f, const std::string& text = "") {
+        JuiceFXEvent ev;
+        ev.type = type;
+        ev.posX = pos.x;
+        ev.posY = pos.y;
+        ev.normalX = normal.x;
+        ev.normalY = normal.y;
+        ev.colorR = col.r;
+        ev.colorG = col.g;
+        ev.colorB = col.b;
+        ev.intensity = intensity;
+        ev.text = text;
+        m_pendingJuiceEvents.push_back(std::move(ev));
+    }
+
 private:
     Fighter* m_p1{ nullptr };
     Fighter* m_p2{ nullptr };
@@ -138,6 +164,7 @@ private:
     int m_roundWinner{ 0 };
 
     float m_clashCooldown{ 0.0f };
+    std::vector<JuiceFXEvent> m_pendingJuiceEvents;
 
     void checkSlowMoClash(RagdollEngine::TimeManager& timeManager, RagdollEngine::CameraDirector& camera, RagdollEngine::JuiceFX& juiceFX) {
         if (!m_p1->getController()->isAttacking() || !m_p2->getController()->isAttacking()) return;
@@ -163,6 +190,8 @@ private:
                 sf::Vector2f mid = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -50.0f);
                 juiceFX.spawnFloatingText(mid, "CLASH!", sf::Color(255, 230, 60), 1.4f);
                 juiceFX.triggerScreenFlash(0.06f, sf::Color(255, 255, 255, 110));
+                queueJuiceEvent(JuiceEventType::FloatingText, mid, sf::Vector2f(0.0f, 0.0f), sf::Color(255, 230, 60), 1.4f, "CLASH!");
+                queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 110), 0.06f);
             }
         }
     }
@@ -214,6 +243,8 @@ private:
                 juiceFX.spawnBlockEffect(strikeTip);
                 camera.addTrauma(0.35f);
                 timeManager.triggerHitstop(0.10f);
+                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(80, 220, 255), 1.5f, "THROW BREAK!");
+                queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, -1.0f), sf::Color(80, 220, 255), 1.0f);
 
                 // Push fighters apart
                 b2BodyId atTorso = attacker.getSkeleton()->getTorso();
@@ -228,6 +259,8 @@ private:
                 camera.addTrauma(0.75f);
                 timeManager.triggerHitstop(0.12f);
                 juiceFX.spawnImpact(strikeTip, sf::Vector2f(0.0f, 1.0f), sf::Color(255, 215, 0), true);
+                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -45.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 215, 0), 1.6f, "THROW!");
+                queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, 1.0f), sf::Color(255, 215, 0), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::PowerCrushAbsorb) {
                 // Power Crush Armor absorbed the hit! (50% white damage, no hitstun)
                 float absorbedDmg = baseDamage * 0.5f;
@@ -236,11 +269,15 @@ private:
                 juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.2f), sf::Color(255, 120, 30), false);
                 camera.addTrauma(0.35f);
                 timeManager.triggerHitstop(0.06f);
+                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 120, 30), 1.4f, "POWER CRUSH!");
+                queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.2f), sf::Color(255, 120, 30), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::Blocked) {
                 juiceFX.spawnBlockEffect(strikeTip);
                 juiceFX.spawnFloatingText(strikeTip, "BLOCKED!", sf::Color(110, 210, 255), 1.0f);
                 camera.addTrauma(0.18f);
                 timeManager.triggerHitstop(0.05f);
+                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip, sf::Vector2f(0.0f, 0.0f), sf::Color(110, 210, 255), 1.0f, "BLOCKED!");
+                queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, -1.0f), sf::Color(110, 210, 255), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::CleanHit || hitRes == RagdollEngine::HitResult::CounterHit) {
                 bool isCounter = (hitRes == RagdollEngine::HitResult::CounterHit);
                 float damageMult = isCounter ? 1.45f : 1.0f;
@@ -257,6 +294,8 @@ private:
                     camera.triggerCinematicZoom(0.28f, 1.8f, 0.0f);
                     timeManager.triggerSlowMo(0.06f, 1.6f);
                     camera.addTrauma(0.95f);
+                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -50.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 30, 30), 2.2f, "RAGE ART!");
+                    queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 40, 40, 180), 0.20f);
                 }
 
                 // Tekken 7 Wall Splat System:
@@ -268,6 +307,8 @@ private:
                     camera.addTrauma(0.65f);
                     timeManager.triggerHitstop(0.14f);
                     juiceFX.spawnImpact(defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), true);
+                    queueJuiceEvent(JuiceEventType::FloatingText, defPos + sf::Vector2f(0.0f, -60.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 160, 20), 1.6f, "WALL SPLAT!");
+                    queueJuiceEvent(JuiceEventType::ImpactHit, defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), 1.0f);
 
                     if (stageRenderer) {
                         float wallX = (defPos.x < 800.0f) ? 60.0f : 1540.0f;
@@ -287,6 +328,7 @@ private:
                 if (defCtrl->getActionState() == RagdollEngine::FighterActionState::LaunchedJuggle) {
                     juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -25.0f), "AIR JUGGLE!", sf::Color(255, 210, 60), 1.15f);
                     defCtrl->popUpJuggle(b2Vec2{ atCtrl->getFacingDirection() * 2.5f, -9.5f });
+                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -25.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 210, 60), 1.15f, "AIR JUGGLE!");
                 }
 
                 // Counter-Hit Text & Slow-Mo
@@ -296,6 +338,8 @@ private:
                     timeManager.triggerSlowMo(0.12f, 0.70f);
                     camera.addTrauma(0.70f);
                     juiceFX.triggerScreenFlash(0.10f, sf::Color(255, 255, 255, 140));
+                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 60, 60), 1.4f, "COUNTER HIT!");
+                    queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 140), 0.10f);
                 } else if (!move.isRageArt) {
                     timeManager.triggerHitstop(move.isLauncher ? 0.10f : 0.07f);
                     if (move.isLauncher) {
@@ -310,6 +354,11 @@ private:
                                      : isCounter ? sf::Color(255, 70, 70)
                                      : sf::Color(255, 230, 80);
                 juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.4f), sparkColor, move.isLauncher || isCounter || move.isRageArt);
+                if (move.isElectric) {
+                    queueJuiceEvent(JuiceEventType::ElectricBurst, strikeTip, sf::Vector2f(0.0f, 0.0f), sf::Color(120, 220, 255), 1.0f);
+                } else {
+                    queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.4f), sparkColor, 1.0f);
+                }
             }
         }
     }
