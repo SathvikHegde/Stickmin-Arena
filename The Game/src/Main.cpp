@@ -10,6 +10,7 @@
 #include "Fighter.hpp"
 #include "CombatManager.hpp"
 #include "MenuManager.hpp"
+#include "NetworkManager.hpp"
 
 #include <iostream>
 #include <memory>

@@ -249,4 +249,30 @@ void RagdollSkeleton::assembleLimbs(const sf::Vector2f& spawnPosPixels) {
     m_joints[static_cast<size_t>(JointType::RightKnee)] = createJoint(rightThigh, rightShin, sf::Vector2f(cx + 5.0f, legY + THIGH_LEN), -150.0f, 150.0f, 16.0f);
 }
 
+SkeletonTransforms RagdollSkeleton::getLimbTransforms() const {
+    SkeletonTransforms result;
+    for (size_t i = 0; i < static_cast<size_t>(LimbType::Count); ++i) {
+        b2BodyId body = m_bodies[i];
+        if (b2Body_IsValid(body)) {
+            result[i].position = PhysicsUnits::toPixels(b2Body_GetPosition(body));
+            b2Rot rot = b2Body_GetRotation(body);
+            result[i].angleRadians = b2Rot_GetAngle(rot);
+        }
+    }
+    return result;
+}
+
+void RagdollSkeleton::setLimbTransforms(const SkeletonTransforms& transforms) {
+    for (size_t i = 0; i < static_cast<size_t>(LimbType::Count); ++i) {
+        b2BodyId body = m_bodies[i];
+        if (b2Body_IsValid(body)) {
+            b2Vec2 posMeters = PhysicsUnits::toMeters(transforms[i].position);
+            b2Body_SetTransform(body, posMeters, b2MakeRot(transforms[i].angleRadians));
+            b2Body_SetLinearVelocity(body, b2Vec2{ 0.0f, 0.0f });
+            b2Body_SetAngularVelocity(body, 0.0f);
+        }
+    }
+}
+
 } // namespace RagdollEngine
+

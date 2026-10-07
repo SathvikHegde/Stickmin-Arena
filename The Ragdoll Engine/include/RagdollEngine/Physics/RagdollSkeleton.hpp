@@ -3,8 +3,14 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Graphics/Color.hpp>
 #include <string>
+#include <array>
 
 namespace RagdollEngine {
+
+struct LimbTransform {
+    sf::Vector2f position{ 0.0f, 0.0f };
+    float angleRadians{ 0.0f };
+};
 
 enum class LimbType {
     Head,
@@ -20,6 +26,8 @@ enum class LimbType {
     RightShin,
     Count
 };
+
+using SkeletonTransforms = std::array<LimbTransform, static_cast<size_t>(LimbType::Count)>;
 
 enum class JointType {
     Neck,
@@ -43,6 +51,9 @@ public:
     // Disable copy, enable move if needed
     RagdollSkeleton(const RagdollSkeleton&) = delete;
     RagdollSkeleton& operator=(const RagdollSkeleton&) = delete;
+
+    SkeletonTransforms getLimbTransforms() const;
+    void setLimbTransforms(const SkeletonTransforms& transforms);
 
     // Body accessors
     b2BodyId getBody(LimbType limb) const { return m_bodies[static_cast<size_t>(limb)]; }

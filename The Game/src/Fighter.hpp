@@ -130,14 +130,19 @@ public:
 
     const std::string& getName() const { return m_name; }
     float getHealth() const { return m_health; }
+    void setHealth(float h) { m_health = h; }
     float getGhostHealth() const { return m_ghostHealth; }
+    void setGhostHealth(float gh) { m_ghostHealth = gh; }
     float getMaxHealth() const { return m_maxHealth; }
     int getRoundsWon() const { return m_roundsWon; }
+    void setRoundsWon(int r) { m_roundsWon = r; }
     void addRoundWin() { m_roundsWon++; }
     void resetRoundsWon() { m_roundsWon = 0; }
 
     int getComboHits() const { return m_comboHits; }
+    void setComboHits(int c) { m_comboHits = c; }
     float getComboDamage() const { return m_comboDamage; }
+    void setComboDamage(float d) { m_comboDamage = d; }
 
     bool isInRage() const { return m_health <= 28.0f && m_health > 0.0f; }
     bool hasUsedRageArt() const { return m_rageArtUsed; }

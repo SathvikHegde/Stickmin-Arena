@@ -123,7 +123,9 @@ public:
     float getRoundTimer() const { return m_roundTimer; }
     void setRoundTimer(float t) { m_roundTimer = t; }
     int getRoundNumber() const { return m_roundNumber; }
+    void setRoundNumber(int n) { m_roundNumber = n; }
     int getRoundWinner() const { return m_roundWinner; }
+    void setRoundWinner(int w) { m_roundWinner = w; }
 
 private:
     Fighter* m_p1{ nullptr };
