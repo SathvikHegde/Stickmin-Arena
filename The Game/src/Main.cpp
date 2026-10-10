@@ -11,6 +11,7 @@
 #include "CombatManager.hpp"
 #include "MenuManager.hpp"
 #include "NetworkManager.hpp"
+#include "CpuController.hpp"
 
 #include <iostream>
 #include <memory>
@@ -103,6 +104,8 @@ int main() {
 
     StickminGame::CombatManager combatManager(&p1, &p2);
     combatManager.startRound(1);
+
+    StickminGame::CpuController cpuController;
 
     float p1Last1Time = -10.0f;
     float p2Last1Time = -10.0f;
@@ -260,6 +263,8 @@ int main() {
             p2.getController()->setMoveInput(0.0f, 0.0f);
             stageRenderer.setStage(static_cast<RagdollEngine::StageType>(menuManager.getSelectedStageIndex()));
             combatManager.startRound(1);
+            cpuController.reset();
+            cpuController.setDifficulty(menuManager.getCpuDifficulty());
         }
 
         if (menuManager.consumeRestartMatchRequested()) {
@@ -268,6 +273,8 @@ int main() {
             p1.resetRoundsWon();
             p2.resetRoundsWon();
             combatManager.startRound(1);
+            cpuController.reset();
+            cpuController.setDifficulty(menuManager.getCpuDifficulty());
         }
 
         // SFML 3 Event Handling
@@ -532,7 +539,8 @@ int main() {
                         // -------------------------------------------------------------
                         // PLAYER 2 COMBAT INPUTS (Offline Local 2P only!)
                         // -------------------------------------------------------------
-                        if (menuManager.getGameMode() != StickminGame::GameMode::Online) {
+                        if (menuManager.getGameMode() != StickminGame::GameMode::Online &&
+                            menuManager.getGameMode() != StickminGame::GameMode::VsCpu) {
                             bool p2Fwd = (p2.getController()->getFacingDirection() > 0)
                                          ? sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)
                                          : sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left);
@@ -859,6 +867,25 @@ int main() {
                 } else {
                     p2.getController()->setMoveInput(0.0f, 0.0f);
                 }
+            } else if (menuManager.getGameMode() == StickminGame::GameMode::VsCpu) {
+                // VS CPU (Single Player vs AI)
+                if (hasFocus && combatManager.getState() == StickminGame::MatchState::Fighting) {
+                    float p1MoveX = 0.0f;
+                    float p1MoveY = 0.0f;
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) p1MoveX -= 1.0f;
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) p1MoveX += 1.0f;
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) p1MoveY += 1.0f;
+                    p1.getController()->setMoveInput(p1MoveX, p1MoveY);
+                } else {
+                    p1.getController()->setMoveInput(0.0f, 0.0f);
+                }
+
+                // CPU Controller drives Player 2!
+                if (combatManager.getState() == StickminGame::MatchState::Fighting) {
+                    cpuController.update(realDt, p2, p1, &stageRenderer);
+                } else {
+                    p2.getController()->setMoveInput(0.0f, 0.0f);
+                }
             } else {
                 // Offline Local 2P / Practice Mode
                 if (hasFocus && combatManager.getState() == StickminGame::MatchState::Fighting) {
@@ -1112,7 +1139,11 @@ int main() {
                 }
 
                 // P2 Nameplate & Title
-                sf::Text p2Name(hudFont, p2.getName(), 18);
+                std::string p2DisplayName = p2.getName();
+                if (menuManager.getGameMode() == StickminGame::GameMode::VsCpu) {
+                    p2DisplayName += " [CPU: " + std::string(StickminGame::getDifficultyName(cpuController.getDifficulty())) + "]";
+                }
+                sf::Text p2Name(hudFont, p2DisplayName, 18);
                 p2Name.setStyle(sf::Text::Bold);
                 p2Name.setFillColor(p2.getCharacterDef().accentColor);
                 p2Name.setOrigin(sf::Vector2f(p2Name.getLocalBounds().size.x, 0.0f));
@@ -1199,6 +1230,8 @@ int main() {
                 // Round Number Banner
                 std::string roundStr = (menuManager.getGameMode() == StickminGame::GameMode::Practice)
                                      ? "PRACTICE"
+                                     : (menuManager.getGameMode() == StickminGame::GameMode::VsCpu)
+                                     ? ("VS CPU // ROUND " + std::to_string(combatManager.getRoundNumber()))
                                      : ("ROUND " + std::to_string(combatManager.getRoundNumber()));
                 sf::Text roundSub(hudFont, roundStr, 11);
                 roundSub.setStyle(sf::Text::Bold);
@@ -1308,6 +1341,10 @@ int main() {
                     helpStr = std::string(netManager.isHost() ? "[P1 HOST - YOU] " : "[P2 CLIENT - YOU] ") +
                               "1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\n"
                               "Fwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back  |  [ESC] Pause";
+                } else if (menuManager.getGameMode() == StickminGame::GameMode::VsCpu) {
+                    helpStr = "[VS CPU // " + std::string(StickminGame::getDifficultyName(cpuController.getDifficulty())) + "]  |  [ESC] Pause  |  [F3] Move List  |  [TAB] Slow-Mo\n"
+                              "P1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush / Rage Art (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\n"
+                              "Fwd+2: EWGF Launcher | Down+3: Hell Sweep | Up+4: Hopkick | Block: Hold Back | Crouch Block: Down+Back";
                 } else if (menuManager.getGameMode() == StickminGame::GameMode::Practice) {
                     helpStr = "[R] Reset Fighters  |  [F3] Move List  |  [ESC] Pause Menu\n"
                               "P1: 1 (J), 2 (K), 3 (U), 4 (I) | 1,2: (J->K) | 1+2: Power Crush (O) | 1+3: Throw (L) | 3+4: Dropkick (P)\n"

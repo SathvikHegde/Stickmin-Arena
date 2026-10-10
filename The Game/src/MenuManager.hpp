@@ -15,6 +15,7 @@
 #include <RagdollEngine/Render/StageRenderer.hpp>
 
 #include "NetworkManager.hpp"
+#include "CpuController.hpp"
 
 #include <string>
 #include <vector>
@@ -39,7 +40,7 @@ enum class GameMode {
     Versus,
     Online,
     Practice,
-    CpuPlaceholder
+    VsCpu
 };
 
 class MenuManager {
@@ -53,7 +54,7 @@ public:
     void setState(MenuState s) {
         if (s == MenuState::CharacterSelect) {
             m_p1Ready = false;
-            m_p2Ready = (m_gameMode == GameMode::Practice);
+            m_p2Ready = (m_gameMode == GameMode::Practice || m_gameMode == GameMode::VsCpu);
             m_lockinTimer = 0.0f;
         } else if (s == MenuState::TitleScreen) {
             m_p1Ready = false;
@@ -69,6 +70,14 @@ public:
 
     GameMode getGameMode() const { return m_gameMode; }
     void setGameMode(GameMode m) { m_gameMode = m; }
+
+    CpuDifficulty getCpuDifficulty() const { return m_cpuDifficulty; }
+    void setCpuDifficulty(CpuDifficulty diff) { m_cpuDifficulty = diff; }
+    void cycleCpuDifficulty() {
+        if (m_cpuDifficulty == CpuDifficulty::Easy) m_cpuDifficulty = CpuDifficulty::Medium;
+        else if (m_cpuDifficulty == CpuDifficulty::Medium) m_cpuDifficulty = CpuDifficulty::Hard;
+        else m_cpuDifficulty = CpuDifficulty::Easy;
+    }
 
     size_t getP1CharIndex() const { return m_p1CharIdx; }
     size_t getP2CharIndex() const { return m_p2CharIdx; }
@@ -248,6 +257,40 @@ public:
                         m_lobbyStateDirty = true;
                     } else {
                         m_state = MenuState::OnlineLobbyModal;
+                    }
+                }
+            } else if (m_gameMode == GameMode::VsCpu) {
+                // In VS CPU:
+                // Player 1: A / D to navigate character, J / Space / Enter to toggle ready
+                if (!m_p1Ready) {
+                    if (key == sf::Keyboard::Key::A) {
+                        m_p1CharIdx = (m_p1CharIdx + roster.size() - 1) % roster.size();
+                    } else if (key == sf::Keyboard::Key::D) {
+                        m_p1CharIdx = (m_p1CharIdx + 1) % roster.size();
+                    }
+                }
+                if (key == sf::Keyboard::Key::J || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::Enter) {
+                    m_p1Ready = !m_p1Ready;
+                    m_p2Ready = true; // CPU opponent is always ready
+                }
+
+                // Left / Right arrow keys change CPU opponent character!
+                if (key == sf::Keyboard::Key::Left) {
+                    m_p2CharIdx = (m_p2CharIdx + roster.size() - 1) % roster.size();
+                } else if (key == sf::Keyboard::Key::Right) {
+                    m_p2CharIdx = (m_p2CharIdx + 1) % roster.size();
+                }
+
+                // Tab key cycles CPU difficulty
+                if (key == sf::Keyboard::Key::Tab) {
+                    cycleCpuDifficulty();
+                }
+
+                if (key == sf::Keyboard::Key::Escape) {
+                    if (m_p1Ready) {
+                        m_p1Ready = false;
+                    } else {
+                        m_state = MenuState::TitleScreen;
                     }
                 }
             } else {
@@ -540,6 +583,45 @@ public:
                 return false;
             }
 
+            // VS CPU Mode clicks
+            if (m_gameMode == GameMode::VsCpu) {
+                sf::FloatRect p1Btn(sf::Vector2f(60.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+                if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                    m_p1Ready = !m_p1Ready;
+                    m_p2Ready = true;
+                    return true;
+                }
+
+                // Clicking CPU button cycles difficulty!
+                sf::FloatRect p2Btn(sf::Vector2f(1210.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
+                if (p2Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
+                    cycleCpuDifficulty();
+                    return true;
+                }
+
+                // Character Cards Click in VS CPU
+                float startX = 415.0f;
+                float cardW = 145.0f;
+                float cardGap = 16.0f;
+                for (size_t i = 0; i < roster.size(); ++i) {
+                    float cx = startX + i * (cardW + cardGap);
+                    sf::FloatRect cardRect(sf::Vector2f(cx, 250.0f), sf::Vector2f(cardW, 200.0f));
+                    if (cardRect.contains(mousePos)) {
+                        if (button == sf::Mouse::Button::Right) {
+                            m_p2CharIdx = i; // Right click picks CPU
+                        } else if (button == sf::Mouse::Button::Left) {
+                            if (!m_p1Ready) {
+                                m_p1CharIdx = i; // Left click picks Player 1
+                            } else {
+                                m_p2CharIdx = i; // If P1 locked in, picks CPU
+                            }
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             // Local Versus Mode clicks
             sf::FloatRect p1Btn(sf::Vector2f(60.0f, 670.0f), sf::Vector2f(330.0f, 80.0f));
             if (p1Btn.contains(mousePos) && button == sf::Mouse::Button::Left) {
@@ -690,9 +772,11 @@ private:
                 m_prevModalState = MenuState::TitleScreen;
                 m_state = MenuState::OnlineLobbyModal;
                 break;
-            case 2: // VS CPU (COMING SOON)
-                m_gameMode = GameMode::CpuPlaceholder;
-                m_state = MenuState::CpuComingSoonModal;
+            case 2: // VS CPU
+                m_gameMode = GameMode::VsCpu;
+                m_p1Ready = false;
+                m_p2Ready = true; // CPU opponent is auto-ready!
+                m_state = MenuState::CharacterSelect;
                 break;
             case 3: // PRACTICE / TRAINING
                 m_gameMode = GameMode::Practice;
@@ -732,7 +816,7 @@ private:
                     m_state = MenuState::OnlineLobbyModal;
                 } else {
                     m_p1Ready = false;
-                    m_p2Ready = (m_gameMode == GameMode::Practice);
+                    m_p2Ready = (m_gameMode == GameMode::Practice || m_gameMode == GameMode::VsCpu);
                     m_state = MenuState::CharacterSelect;
                 }
                 break;
@@ -843,20 +927,20 @@ private:
                 netText.setPosition(sf::Vector2f(1034.0f, btnY + 15.0f));
                 window.draw(netText);
             }
-            // "COMING SOON" small pill on CPU option (index 2)
+            // "1 PLAYER // AI" small pill on CPU option (index 2)
             else if (i == 2) {
                 sf::RectangleShape csPill(sf::Vector2f(95.0f, 18.0f));
                 csPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
                 csPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
-                csPill.setFillColor(sf::Color(220, 50, 50));
+                csPill.setFillColor(sf::Color(40, 180, 90));
                 csPill.setOutlineColor(sf::Color(255, 215, 60));
                 csPill.setOutlineThickness(1.2f);
                 window.draw(csPill);
 
-                sf::Text csText(*m_font, "COMING SOON", 9);
+                sf::Text csText(*m_font, "1 PLAYER // AI", 9);
                 csText.setStyle(sf::Text::Bold);
                 csText.setFillColor(sf::Color::White);
-                csText.setPosition(sf::Vector2f(1036.0f, btnY + 15.0f));
+                csText.setPosition(sf::Vector2f(1035.0f, btnY + 15.0f));
                 window.draw(csText);
             }
 
@@ -1408,7 +1492,9 @@ private:
         window.draw(header);
 
         std::string subStr = "CLICK [PICK P1] / [PICK P2] ON CARDS OR PRESS J / ENTER TO LOCK IN";
-        if (m_gameMode == GameMode::Online && m_netManager) {
+        if (m_gameMode == GameMode::VsCpu) {
+            subStr = "VS CPU MODE // [A/D] PICK P1 | [LEFT/RIGHT] PICK CPU | [TAB] DIFFICULTY: " + std::string(getDifficultyName(m_cpuDifficulty)) + " | [J / SPACE] LOCK IN";
+        } else if (m_gameMode == GameMode::Online && m_netManager) {
             if (m_netManager->isHost()) {
                 subStr = "ONLINE MATCH // YOU ARE PLAYER 1 (HOST) - CHOOSE FIGHTER [J / SPACE TO LOCK]";
             } else if (m_netManager->isClient()) {
@@ -1571,7 +1657,10 @@ private:
         window.draw(box);
 
         // Header Tag
-        sf::Text tag(*m_font, playerNum == 1 ? "PLAYER 1" : "PLAYER 2", 14);
+        std::string headerTag = (playerNum == 1) ? "PLAYER 1"
+                              : (m_gameMode == GameMode::VsCpu) ? ("CPU OPPONENT [" + std::string(getDifficultyName(m_cpuDifficulty)) + "]")
+                              : "PLAYER 2";
+        sf::Text tag(*m_font, headerTag, 14);
         tag.setStyle(sf::Text::Bold);
         tag.setFillColor(themeCol);
         tag.setPosition(sf::Vector2f(pos.x + 20.0f, pos.y + 16.0f));
@@ -1664,7 +1753,14 @@ private:
         }
         window.draw(statusBtn);
 
-        std::string statusStr = isReady ? "READY! [LOCKED IN]" : (playerNum == 1 ? "P1: PRESS [J] TO LOCK" : (m_gameMode == GameMode::Online ? "P2: PRESS [J] TO LOCK" : "P2: PRESS [ENTER] TO LOCK"));
+        std::string statusStr = isReady
+            ? ((m_gameMode == GameMode::VsCpu && playerNum == 2)
+                ? ("CPU: " + std::string(getDifficultyName(m_cpuDifficulty)) + " [READY]")
+                : "READY! [LOCKED IN]")
+            : (playerNum == 1 ? "P1: PRESS [J] TO LOCK"
+               : (m_gameMode == GameMode::Online ? "P2: PRESS [J] TO LOCK"
+                  : (m_gameMode == GameMode::VsCpu ? ("CPU: " + std::string(getDifficultyName(m_cpuDifficulty)) + " [CLICK/TAB TO CHANGE]")
+                     : "P2: PRESS [ENTER] TO LOCK")));
         sf::Text statusText(*m_font, statusStr, 13);
         statusText.setStyle(sf::Text::Bold);
         statusText.setFillColor(sf::Color::White);
@@ -1892,7 +1988,10 @@ private:
         p2Name.setPosition(sf::Vector2f(1220.0f, 540.0f));
         window.draw(p2Name);
 
-        sf::Text p2Title(*m_font, p2Def.title, 14);
+        std::string p2TitleStr = (m_gameMode == GameMode::VsCpu)
+                               ? ("CPU OPPONENT // " + std::string(getDifficultyName(m_cpuDifficulty)))
+                               : p2Def.title;
+        sf::Text p2Title(*m_font, p2TitleStr, 14);
         p2Title.setStyle(sf::Text::Bold);
         p2Title.setFillColor(sf::Color(235, 180, 195));
         p2Title.setOrigin(sf::Vector2f(p2Title.getLocalBounds().size.x * 0.5f, 0.0f));
@@ -1998,6 +2097,7 @@ private:
     MenuState m_state{ MenuState::TitleScreen };
     MenuState m_prevModalState{ MenuState::TitleScreen };
     GameMode m_gameMode{ GameMode::Versus };
+    CpuDifficulty m_cpuDifficulty{ CpuDifficulty::Medium };
 
     size_t m_p1CharIdx{ 0 };
     size_t m_p2CharIdx{ 1 };

@@ -119,7 +119,9 @@ public:
 
     // Accessors
     RagdollEngine::RagdollSkeleton* getSkeleton() { return m_skeleton.get(); }
+    const RagdollEngine::RagdollSkeleton* getSkeleton() const { return m_skeleton.get(); }
     RagdollEngine::ActiveRagdollController* getController() { return m_controller.get(); }
+    const RagdollEngine::ActiveRagdollController* getController() const { return m_controller.get(); }
     const RagdollEngine::CharacterDefinition& getTheme() const { return m_charDef; }
     const RagdollEngine::CharacterDefinition& getCharacterDef() const { return m_charDef; }
     void setCharacterDef(const RagdollEngine::CharacterDefinition& def) {
