@@ -203,7 +203,19 @@ public:
         }
         // 2. Command List Modal
         else if (m_state == MenuState::CommandListModal) {
-            if (key == sf::Keyboard::Key::Escape || key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::F3) {
+            if (key == sf::Keyboard::Key::A || key == sf::Keyboard::Key::Left) {
+                m_cmdListTab = (m_cmdListTab + 3) % 4;
+            } else if (key == sf::Keyboard::Key::D || key == sf::Keyboard::Key::Right || key == sf::Keyboard::Key::Tab) {
+                m_cmdListTab = (m_cmdListTab + 1) % 4;
+            } else if (key == sf::Keyboard::Key::Num1) {
+                m_cmdListTab = 0;
+            } else if (key == sf::Keyboard::Key::Num2) {
+                m_cmdListTab = 1;
+            } else if (key == sf::Keyboard::Key::Num3) {
+                m_cmdListTab = 2;
+            } else if (key == sf::Keyboard::Key::Num4) {
+                m_cmdListTab = 3;
+            } else if (key == sf::Keyboard::Key::Escape || key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::F3) {
                 m_state = m_prevModalState;
             }
         }
@@ -493,8 +505,28 @@ public:
         }
         // 2. Command List Modal Click
         else if (m_state == MenuState::CommandListModal && button == sf::Mouse::Button::Left) {
-            sf::FloatRect closeBtn(sf::Vector2f(670.0f, 728.0f), sf::Vector2f(260.0f, 44.0f));
-            if (closeBtn.contains(mousePos) || !sf::FloatRect(sf::Vector2f(250.0f, 100.0f), sf::Vector2f(1100.0f, 750.0f)).contains(mousePos)) {
+            // Check tab clicks
+            const float tabW = 285.0f;
+            const float tabH = 34.0f;
+            const float tabSpacing = 12.0f;
+            const float tabStartY = 125.0f;
+            const float tabStartX = 210.0f;
+            for (int i = 0; i < 4; ++i) {
+                sf::FloatRect tabRect(sf::Vector2f(tabStartX + i * (tabW + tabSpacing), tabStartY), sf::Vector2f(tabW, tabH));
+                if (tabRect.contains(mousePos)) {
+                    m_cmdListTab = i;
+                    return true;
+                }
+            }
+
+            // Close button (bottom center)
+            sf::FloatRect closeBtn(sf::Vector2f(690.0f, 776.0f), sf::Vector2f(220.0f, 38.0f));
+            // Close 'X' button (top-right)
+            sf::FloatRect closeX(sf::Vector2f(1374.0f, 81.0f), sf::Vector2f(30.0f, 30.0f));
+            // Modal box bounds
+            sf::FloatRect modalBox(sf::Vector2f(180.0f, 65.0f), sf::Vector2f(1240.0f, 770.0f));
+
+            if (closeBtn.contains(mousePos) || closeX.contains(mousePos) || !modalBox.contains(mousePos)) {
                 m_state = m_prevModalState;
                 return true;
             }
@@ -767,6 +799,7 @@ private:
                 break;
             case 4: // COMMAND LIST
                 m_prevModalState = MenuState::TitleScreen;
+                m_cmdListTab = 0;
                 m_state = MenuState::CommandListModal;
                 break;
             case 5: // EXIT
@@ -782,6 +815,7 @@ private:
                 break;
             case 1: // COMMAND LIST
                 m_prevModalState = MenuState::PauseMenu;
+                m_cmdListTab = 0;
                 m_state = MenuState::CommandListModal;
                 break;
             case 2: // RESTART ROUND
@@ -884,38 +918,7 @@ private:
             optText.setPosition(sf::Vector2f(800.0f, btnY + 21.0f));
             window.draw(optText);
 
-            // "ONLINE" pill on Online option (index 1)
-            if (i == 1) {
-                sf::RectangleShape netPill(sf::Vector2f(72.0f, 18.0f));
-                netPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
-                netPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
-                netPill.setFillColor(sf::Color(30, 160, 240));
-                netPill.setOutlineColor(sf::Color(255, 215, 60));
-                netPill.setOutlineThickness(1.2f);
-                window.draw(netPill);
 
-                sf::Text netText(*m_font, "ONLINE", 9);
-                netText.setStyle(sf::Text::Bold);
-                netText.setFillColor(sf::Color::White);
-                netText.setPosition(sf::Vector2f(1042.0f, btnY + 15.0f));
-                window.draw(netText);
-            }
-            // "VS CPU" small pill on CPU option (index 2)
-            else if (i == 2) {
-                sf::RectangleShape csPill(sf::Vector2f(72.0f, 18.0f));
-                csPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
-                csPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
-                csPill.setFillColor(sf::Color(40, 180, 90));
-                csPill.setOutlineColor(sf::Color(255, 215, 60));
-                csPill.setOutlineThickness(1.2f);
-                window.draw(csPill);
-
-                sf::Text csText(*m_font, "VS CPU", 9);
-                csText.setStyle(sf::Text::Bold);
-                csText.setFillColor(sf::Color::White);
-                csText.setPosition(sf::Vector2f(1042.0f, btnY + 15.0f));
-                window.draw(csText);
-            }
 
             // Arrow on selected
             if (isSelected) {
@@ -1216,160 +1219,502 @@ private:
     }
 
     // -------------------------------------------------------------------------
-    // 2. COMMAND LIST MODAL
+    // 2. COMMAND LIST MODAL (TABBED TEKKEN 8 STYLE SYSTEM GUIDE)
     // -------------------------------------------------------------------------
     void drawCommandListModal(sf::RenderWindow& window) {
+        if (!m_font) return;
+
+        // Dark dimming overlay mask
         sf::RectangleShape mask(sf::Vector2f(1600.0f, 900.0f));
-        mask.setFillColor(sf::Color(8, 10, 16, 235));
+        mask.setFillColor(sf::Color(6, 8, 14, 240));
         window.draw(mask);
 
-        // Large Modal Box
-        sf::RectangleShape box(sf::Vector2f(1100.0f, 750.0f));
-        box.setOrigin(sf::Vector2f(550.0f, 375.0f));
-        box.setPosition(sf::Vector2f(800.0f, 450.0f));
-        box.setFillColor(sf::Color(16, 20, 28, 250));
-        box.setOutlineColor(sf::Color(45, 145, 255));
-        box.setOutlineThickness(3.0f);
+        // Modal dimensions: 1240 x 770, Top-Left at (180, 65)
+        const float modalX = 180.0f;
+        const float modalY = 65.0f;
+        const float modalW = 1240.0f;
+        const float modalH = 770.0f;
+
+        // Outer Modal Box
+        sf::RectangleShape box(sf::Vector2f(modalW, modalH));
+        box.setPosition(sf::Vector2f(modalX, modalY));
+        box.setFillColor(sf::Color(14, 18, 26, 252));
+        box.setOutlineColor(sf::Color(45, 130, 240));
+        box.setOutlineThickness(2.5f);
         window.draw(box);
 
-        // Title
-        sf::Text title(*m_font, "COMMAND LIST & FIGHTING GAME MECHANICS", 24);
+        // Top Accent Gold Line
+        sf::RectangleShape accentLine(sf::Vector2f(modalW, 3.0f));
+        accentLine.setPosition(sf::Vector2f(modalX, modalY));
+        accentLine.setFillColor(sf::Color(255, 215, 60));
+        window.draw(accentLine);
+
+        // Header Title
+        sf::Text title(*m_font, "COMMAND LIST & SYSTEM MECHANICS", 22);
         title.setStyle(sf::Text::Bold);
-        title.setFillColor(sf::Color(255, 255, 255));
-        title.setOutlineColor(sf::Color(45, 145, 255));
-        title.setOutlineThickness(2.0f);
-        title.setOrigin(sf::Vector2f(title.getLocalBounds().size.x * 0.5f, 0.0f));
-        title.setPosition(sf::Vector2f(800.0f, 95.0f));
+        title.setFillColor(sf::Color::White);
+        title.setPosition(sf::Vector2f(modalX + 28.0f, modalY + 14.0f));
         window.draw(title);
 
-        sf::Text sub(*m_font, "4-Button Battle System", 13);
-        sub.setFillColor(sf::Color(255, 215, 60));
-        sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
-        sub.setPosition(sf::Vector2f(800.0f, 132.0f));
-        window.draw(sub);
+        sf::Text subTitle(*m_font, "Tekken-Style Ragdoll Combat System  *  Navigate with [A] / [D] / [TAB] or Click Tabs", 12);
+        subTitle.setFillColor(sf::Color(255, 215, 70));
+        subTitle.setPosition(sf::Vector2f(modalX + 30.0f, modalY + 42.0f));
+        window.draw(subTitle);
 
-        // 3 Column Layout
-        float colY = 175.0f;
-        float colW = 330.0f;
+        // Close 'X' Button at top-right
+        sf::FloatRect closeXRect(sf::Vector2f(1374.0f, 81.0f), sf::Vector2f(30.0f, 30.0f));
+        bool closeXHover = closeXRect.contains(m_mousePos);
+        sf::RectangleShape closeXBox(sf::Vector2f(30.0f, 30.0f));
+        closeXBox.setPosition(sf::Vector2f(1374.0f, 81.0f));
+        closeXBox.setFillColor(closeXHover ? sf::Color(180, 40, 40, 220) : sf::Color(35, 42, 58, 180));
+        closeXBox.setOutlineColor(closeXHover ? sf::Color(255, 100, 100) : sf::Color(70, 85, 110));
+        closeXBox.setOutlineThickness(1.5f);
+        window.draw(closeXBox);
 
-        // Column 1: Basic 4-Button Controls
-        sf::RectangleShape col1(sf::Vector2f(colW, 530.0f));
-        col1.setPosition(sf::Vector2f(280.0f, colY));
-        col1.setFillColor(sf::Color(22, 28, 40));
-        col1.setOutlineColor(sf::Color(55, 70, 95));
-        col1.setOutlineThickness(1.5f);
-        window.draw(col1);
+        sf::Text closeXText(*m_font, "X", 14);
+        closeXText.setStyle(sf::Text::Bold);
+        closeXText.setFillColor(closeXHover ? sf::Color::White : sf::Color(190, 205, 225));
+        closeXText.setOrigin(sf::Vector2f(closeXText.getLocalBounds().size.x * 0.5f, closeXText.getLocalBounds().size.y * 0.5f + 2.0f));
+        closeXText.setPosition(sf::Vector2f(1389.0f, 96.0f));
+        window.draw(closeXText);
 
-        sf::Text h1(*m_font, "1. FOUR-BUTTON LAYOUT", 15);
-        h1.setStyle(sf::Text::Bold);
-        h1.setFillColor(sf::Color(80, 180, 255));
-        h1.setPosition(sf::Vector2f(295.0f, colY + 14.0f));
-        window.draw(h1);
+        // ---------------------------------------------------------------------
+        // TAB BAR (Y: 125 to 159)
+        // ---------------------------------------------------------------------
+        const std::vector<std::string> tabTitles = {
+            "1. MOVES & FRAME DATA",
+            "2. OFFENSE & COMBOS",
+            "3. DEFENSE & SYSTEM",
+            "4. CONTROLS & SHORTCUTS"
+        };
 
-        sf::Text t1(*m_font,
-            "PLAYER 1 CONTROLS:\n"
-            "  1 (LP): [J]       2 (RP): [K]\n"
-            "  3 (LK): [U]       4 (RK): [I]\n"
-            "  Move: [W] [A] [S] [D]\n\n"
-            "PLAYER 2 CONTROLS:\n"
-            "  1 (LP): [Num1]   2 (RP): [Num2]\n"
-            "  3 (LK): [Num4]   4 (RK): [Num5]\n"
-            "  Move: [Arrow Keys]\n\n"
-            "NATURAL COMBOS:\n"
-            "  1, 2 String : [J] -> [K]\n"
-            "  Two-hit jab string. Plus frames on hit.\n\n"
-            "DASHING:\n"
-            "  Double tap [D] or [A] to dash.\n"
-            "  Covers ground with forward movement.", 13);
-        t1.setFillColor(sf::Color(215, 225, 240));
-        t1.setPosition(sf::Vector2f(295.0f, colY + 45.0f));
-        window.draw(t1);
+        const float tabW = 285.0f;
+        const float tabH = 34.0f;
+        const float tabSpacing = 12.0f;
+        const float tabStartX = 210.0f;
+        const float tabStartY = 125.0f;
 
-        // Column 2: Universal Special Moves
-        sf::RectangleShape col2(sf::Vector2f(colW, 530.0f));
-        col2.setPosition(sf::Vector2f(635.0f, colY));
-        col2.setFillColor(sf::Color(22, 28, 40));
-        col2.setOutlineColor(sf::Color(55, 70, 95));
-        col2.setOutlineThickness(1.5f);
-        window.draw(col2);
+        for (size_t i = 0; i < tabTitles.size(); ++i) {
+            float tx = tabStartX + i * (tabW + tabSpacing);
+            sf::FloatRect tRect(sf::Vector2f(tx, tabStartY), sf::Vector2f(tabW, tabH));
+            bool isCurrent = (static_cast<int>(i) == m_cmdListTab);
+            bool isHovered = tRect.contains(m_mousePos);
 
-        sf::Text h2(*m_font, "2. SPECIAL MOVES", 15);
-        h2.setStyle(sf::Text::Bold);
-        h2.setFillColor(sf::Color(255, 205, 60));
-        h2.setPosition(sf::Vector2f(650.0f, colY + 14.0f));
-        window.draw(h2);
+            sf::RectangleShape tabBtn(sf::Vector2f(tabW, tabH));
+            tabBtn.setPosition(sf::Vector2f(tx, tabStartY));
 
-        sf::Text t2(*m_font,
-            "ELECTRIC WIND GOD FIST (EWGF):\n"
-            "  [Forward + 2] (D+K / Right+Num2)\n"
-            "  High launcher. Plus frames on block.\n\n"
-            "HELL SWEEP:\n"
-            "  [Down + 3] (S+U / Down+Num4)\n"
-            "  Low sweep. Trips opponent on hit.\n\n"
-            "HOPKICK:\n"
-            "  [Up + 4] (W+I / Up+Num5)\n"
-            "  Mid launcher. Low crush property.\n\n"
-            "POWER CRUSH:\n"
-            "  [1+2] (Key [O] or J+K / Num3)\n"
-            "  Mid armor strike. Absorbs high and mid attacks.\n\n"
-            "COMMAND THROW:\n"
-            "  [1+3] (Key [L] or J+U / Num6)\n"
-            "  Unblockable throw.", 13);
-        t2.setFillColor(sf::Color(215, 225, 240));
-        t2.setPosition(sf::Vector2f(650.0f, colY + 45.0f));
-        window.draw(t2);
+            if (isCurrent) {
+                tabBtn.setFillColor(sf::Color(30, 75, 145, 240));
+                tabBtn.setOutlineColor(sf::Color(255, 215, 60));
+                tabBtn.setOutlineThickness(2.2f);
+            } else if (isHovered) {
+                tabBtn.setFillColor(sf::Color(35, 48, 70, 220));
+                tabBtn.setOutlineColor(sf::Color(80, 160, 255));
+                tabBtn.setOutlineThickness(1.5f);
+            } else {
+                tabBtn.setFillColor(sf::Color(22, 28, 40, 200));
+                tabBtn.setOutlineColor(sf::Color(55, 70, 95));
+                tabBtn.setOutlineThickness(1.2f);
+            }
+            window.draw(tabBtn);
 
-        // Column 3: Defense & Rage Art
-        sf::RectangleShape col3(sf::Vector2f(colW, 530.0f));
-        col3.setPosition(sf::Vector2f(990.0f, colY));
-        col3.setFillColor(sf::Color(22, 28, 40));
-        col3.setOutlineColor(sf::Color(55, 70, 95));
-        col3.setOutlineThickness(1.5f);
-        window.draw(col3);
+            // Active underline indicator
+            if (isCurrent) {
+                sf::RectangleShape activeLine(sf::Vector2f(tabW, 3.0f));
+                activeLine.setPosition(sf::Vector2f(tx, tabStartY + tabH - 3.0f));
+                activeLine.setFillColor(sf::Color(255, 215, 60));
+                window.draw(activeLine);
+            }
 
-        sf::Text h3(*m_font, "3. DEFENSE & RAGE", 15);
-        h3.setStyle(sf::Text::Bold);
-        h3.setFillColor(sf::Color(255, 75, 85));
-        h3.setPosition(sf::Vector2f(1005.0f, colY + 14.0f));
-        window.draw(h3);
+            sf::Text tabTxt(*m_font, tabTitles[i], 13);
+            tabTxt.setStyle(sf::Text::Bold);
+            tabTxt.setFillColor(isCurrent ? sf::Color(255, 255, 255) : (isHovered ? sf::Color(220, 235, 255) : sf::Color(170, 185, 205)));
+            tabTxt.setOrigin(sf::Vector2f(tabTxt.getLocalBounds().size.x * 0.5f, tabTxt.getLocalBounds().size.y * 0.5f + 3.0f));
+            tabTxt.setPosition(sf::Vector2f(tx + tabW * 0.5f, tabStartY + tabH * 0.5f));
+            window.draw(tabTxt);
+        }
 
-        sf::Text t3(*m_font,
-            "HIGH GUARD (BLOCK):\n"
-            "  Hold [Back] (away from opponent).\n"
-            "  Blocks high and mid attacks.\n\n"
-            "CROUCH GUARD:\n"
-            "  Hold [Down + Back].\n"
-            "  Blocks lows, ducks high punches.\n\n"
-            "TECH ROLL (GETUP):\n"
-            "  Tap any attack button while grounded\n"
-            "  to recover quickly.\n\n"
-            "RAGE ART FINISHER:\n"
-            "  Available below 25% HP (Red Glow).\n"
-            "  Press [1+2] ([O] or [Num3])\n"
-            "  Armored strike finisher.\n\n"
-            "WALL SPLATS:\n"
-            "  Heavy strikes near walls cause\n"
-            "  wall splat crumple states.", 13);
-        t3.setFillColor(sf::Color(215, 225, 240));
-        t3.setPosition(sf::Vector2f(1005.0f, colY + 45.0f));
-        window.draw(t3);
+        // Shared drawing lambdas
+        auto drawCard = [&](float x, float y, float w, float h, sf::Color fill, sf::Color border = sf::Color(55, 70, 95), float thick = 1.2f) {
+            sf::RectangleShape card(sf::Vector2f(w, h));
+            card.setPosition(sf::Vector2f(x, y));
+            card.setFillColor(fill);
+            card.setOutlineColor(border);
+            card.setOutlineThickness(thick);
+            window.draw(card);
+        };
 
-        // Close Button
-        sf::FloatRect closeRect(sf::Vector2f(670.0f, 728.0f), sf::Vector2f(260.0f, 44.0f));
+        auto drawPill = [&](float x, float y, float w, float h, const std::string& text, sf::Color fill, sf::Color textColor, sf::Color outline = sf::Color::Transparent) {
+            sf::RectangleShape pill(sf::Vector2f(w, h));
+            pill.setPosition(sf::Vector2f(x, y));
+            pill.setFillColor(fill);
+            if (outline != sf::Color::Transparent) {
+                pill.setOutlineColor(outline);
+                pill.setOutlineThickness(1.0f);
+            }
+            window.draw(pill);
+
+            sf::Text pt(*m_font, text, 10);
+            pt.setStyle(sf::Text::Bold);
+            pt.setFillColor(textColor);
+            pt.setOrigin(sf::Vector2f(pt.getLocalBounds().size.x * 0.5f, pt.getLocalBounds().size.y * 0.5f + 2.0f));
+            pt.setPosition(sf::Vector2f(x + w * 0.5f, y + h * 0.5f));
+            window.draw(pt);
+        };
+
+        auto drawSectionHeader = [&](float x, float y, float w, const std::string& hdrTitle, sf::Color barCol, sf::Color textCol = sf::Color::White) {
+            sf::RectangleShape bar(sf::Vector2f(w, 28.0f));
+            bar.setPosition(sf::Vector2f(x, y));
+            bar.setFillColor(barCol);
+            window.draw(bar);
+
+            sf::Text st(*m_font, hdrTitle, 13);
+            st.setStyle(sf::Text::Bold);
+            st.setFillColor(textCol);
+            st.setPosition(sf::Vector2f(x + 12.0f, y + 5.0f));
+            window.draw(st);
+        };
+
+        // =====================================================================
+        // TAB 0: MOVES & FRAME DATA
+        // =====================================================================
+        if (m_cmdListTab == 0) {
+            struct MoveCardData {
+                std::string inputP1;
+                std::string inputP2;
+                std::string notation;
+                std::string name;
+                std::string height;
+                sf::Color heightCol;
+                std::string damage;
+                std::string frameData;
+                std::string notes;
+                std::string tag;
+                sf::Color tagCol;
+            };
+
+            const std::vector<MoveCardData> moves = {
+                // Left Column (0-5)
+                { "[J]", "[Num1]", "1 (LP)", "Flash Jab", "HIGH", sf::Color(240, 185, 50), "9.0", "Startup: 0.06s (i3.6) | Act: 0.05s | Rec: 0.08s", "Fastest standing poke in the game. Plus frames on hit; checks incoming rushes.", "", sf::Color::Transparent },
+                { "[K]", "[Num2]", "2 (RP)", "Straight Cross", "MID", sf::Color(65, 190, 255), "15.0", "Startup: 0.08s (i4.8) | Act: 0.06s | Rec: 0.10s", "Mid check; cannot be ducked. Stops crouching opponents and pushes back.", "", sf::Color::Transparent },
+                { "[J]->[K]", "[Num1]->[2]", "1, 2", "1, 2 String", "HIGH", sf::Color(240, 185, 50), "17.0", "Startup: 0.07s (i4.2) | Act: 0.09s | Rec: 0.11s", "Natural two-hit jab combo. Staggers target; maintains frame dominance.", "NATURAL", sf::Color(100, 220, 120) },
+                { "[U]", "[Num4]", "3 (LK)", "Mid Kick", "MID", sf::Color(65, 190, 255), "14.0", "Startup: 0.09s (i5.4) | Act: 0.06s | Rec: 0.11s", "Mid spacing kick. Great mid-range check to stuff approaching moves.", "", sf::Color::Transparent },
+                { "[S+U]", "[Down+4]", "d+3", "Hell Sweep", "LOW", sf::Color(255, 90, 60), "16.0", "Startup: 0.11s (i6.6) | Act: 0.07s | Rec: 0.13s", "Low trip sweep. Pierces high guard; knocks down opponent into tumble.", "TRIP", sf::Color(255, 120, 50) },
+                { "[I]", "[Num5]", "4 (RK)", "Axe Roundhouse", "HIGH", sf::Color(240, 185, 50), "22.0", "Startup: 0.12s (i7.2) | Act: 0.07s | Rec: 0.15s", "Heavy roundhouse (15x, -7.5y). Counter-Hit Launcher for full air juggles!", "CH LAUNCH", sf::Color(255, 75, 75) },
+
+                // Right Column (6-11)
+                { "[D+K]", "[Right+2]", "f+2", "Electric Wind God Fist", "MID", sf::Color(65, 190, 255), "25.0", "Startup: 0.12s (i7.2) | Act: 0.08s | Rec: 0.14s", "Premier launcher (4x, -17.5y)! Electric sparks; initiates max air juggles.", "ELECTRIC", sf::Color(255, 225, 40) },
+                { "[W+I]", "[Up+5]", "u+4", "Hopkick", "MID", sf::Color(65, 190, 255), "18.0", "Startup: 0.10s (i6.0) | Act: 0.07s | Rec: 0.16s", "Universal mid launcher (4.5x, -15.5y). Low Crush: jumps over low sweeps!", "LAUNCHER", sf::Color(100, 220, 255) },
+                { "[P]", "[Num9]", "3+4", "Flying Dropkick", "MID", sf::Color(65, 190, 255), "28.0", "Startup: 0.14s (i8.4) | Act: 0.12s | Rec: 0.20s", "Supersonic dive (20x, -6.5y). Full screen reach; massive Wall Splat tool!", "WALL SPLAT", sf::Color(255, 160, 30) },
+                { "[O]", "[Num3]", "1+2", "Power Crush", "MID", sf::Color(65, 190, 255), "24.0", "Startup: 0.15s (i9.0) | Act: 0.08s | Rec: 0.17s", "Hyper Armor: Absorbs High/Mid hits (50% dmg, 0 hitstun). Loses to lows.", "ARMOR", sf::Color(255, 140, 40) },
+                { "[L]", "[Num6]", "1+3", "Command Throw", "HIGH", sf::Color(240, 185, 50), "26.0", "Startup: 0.12s (i7.2) | Act: 0.08s | Rec: 0.16s", "Unblockable 34px reach grab! Ignores standing guard; duck or attack to break.", "UNBLOCK", sf::Color(200, 110, 255) },
+                { "[O] in Rage", "[Num3] Rage", "1+2 Rage", "Rage Art Finisher", "MID", sf::Color(65, 190, 255), "55.2", "Startup: 0.18s (i10.8) | Act: 0.12s | Rec: 0.22s", "Super armored launcher (24x, -14y). +15% Rage boost, slow-mo cinematic!", "SUPER", sf::Color(255, 45, 65) }
+            };
+
+            const float colW = 580.0f;
+            const float cardH = 85.0f;
+            const float cardGap = 7.0f;
+            const float startY = 172.0f;
+
+            for (size_t i = 0; i < moves.size(); ++i) {
+                float cx = (i < 6) ? 210.0f : 810.0f;
+                float cy = startY + (i % 6) * (cardH + cardGap);
+                const auto& m = moves[i];
+
+                drawCard(cx, cy, colW, cardH, sf::Color(20, 25, 36, 230), sf::Color(45, 58, 80));
+
+                // Input Pill (P1 / P2)
+                drawPill(cx + 8.0f, cy + 9.0f, 62.0f, 20.0f, m.notation, sf::Color(32, 45, 68), sf::Color(255, 220, 75), sf::Color(65, 90, 130));
+
+                // Move Name
+                sf::Text nameTxt(*m_font, m.name, 14);
+                nameTxt.setStyle(sf::Text::Bold);
+                nameTxt.setFillColor(sf::Color::White);
+                nameTxt.setPosition(sf::Vector2f(cx + 78.0f, cy + 9.0f));
+                window.draw(nameTxt);
+
+                // Attack Height Badge
+                drawPill(cx + 310.0f, cy + 9.0f, 44.0f, 20.0f, m.height, m.heightCol, sf::Color(15, 20, 30));
+
+                // Tag badge if present
+                if (!m.tag.empty()) {
+                    drawPill(cx + 360.0f, cy + 9.0f, 68.0f, 20.0f, m.tag, m.tagCol, sf::Color(15, 20, 30));
+                }
+
+                // Damage Badge
+                drawPill(cx + 495.0f, cy + 9.0f, 75.0f, 20.0f, "DMG: " + m.damage, sf::Color(25, 42, 32), sf::Color(110, 240, 150), sf::Color(50, 100, 70));
+
+                // Frame data line
+                sf::Text fdTxt(*m_font, m.frameData, 11);
+                fdTxt.setFillColor(sf::Color(180, 195, 215));
+                fdTxt.setPosition(sf::Vector2f(cx + 10.0f, cy + 36.0f));
+                window.draw(fdTxt);
+
+                // Keys mapping
+                sf::Text keysTxt(*m_font, "P1: " + m.inputP1 + "  |  P2: " + m.inputP2, 10);
+                keysTxt.setFillColor(sf::Color(135, 150, 175));
+                keysTxt.setPosition(sf::Vector2f(cx + 375.0f, cy + 36.0f));
+                window.draw(keysTxt);
+
+                // Tactical note line
+                sf::Text noteTxt(*m_font, m.notes, 11);
+                noteTxt.setFillColor(sf::Color(215, 225, 240));
+                noteTxt.setPosition(sf::Vector2f(cx + 10.0f, cy + 58.0f));
+                window.draw(noteTxt);
+            }
+        }
+        // =====================================================================
+        // TAB 1: OFFENSE & COMBOS
+        // =====================================================================
+        else if (m_cmdListTab == 1) {
+            const float pW = 580.0f;
+            const float pH = 268.0f;
+
+            // Panel 1: Attack Height Matrix (Top-Left)
+            drawCard(210.0f, 172.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 172.0f, pW, "1. ATTACK HEIGHT ROCK-PAPER-SCISSORS", sf::Color(32, 55, 90));
+
+            sf::Text hMatrix(*m_font,
+                "HIGH ATTACKS (Flash Jab, 1,2 String, Axe Roundhouse, Throw):\n"
+                "  * Fastest startup (3-7 frames) with frame advantage on block.\n"
+                "  * VULNERABILITY: Duckable! Crouching/low-guarding foes evade highs completely.\n\n"
+                "MID ATTACKS (Straight Cross, EWGF, Hopkick, Dropkick, Power Crush):\n"
+                "  * Core offensive weapon: Hits both standing and crouching opponents!\n"
+                "  * CRUSHES LOW GUARD: Punishes ducking defenders for full clean hit damage.\n\n"
+                "LOW ATTACKS (Hell Sweep [d+3]):\n"
+                "  * Pierces High & Standing Neutral Guards completely, tripping into tumble!\n"
+                "  * VULNERABILITY: Blocked by Low Guard (Down+Back); slow on recovery.", 11);
+            hMatrix.setFillColor(sf::Color(215, 225, 240));
+            hMatrix.setPosition(sf::Vector2f(222.0f, 210.0f));
+            window.draw(hMatrix);
+
+            // Panel 2: Counter Hit & Punish System (Top-Right)
+            drawCard(810.0f, 172.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(810.0f, 172.0f, pW, "2. COUNTER HIT & PUNISH MECHANICS", sf::Color(90, 35, 45));
+
+            sf::Text chMatrix(*m_font,
+                "COUNTER HIT TRIGGER & DAMAGE SURGE:\n"
+                "  * Striking an opponent while they are in move startup triggers COUNTER HIT!\n"
+                "  * +45% DAMAGE BOOST: Deals 1.45x damage on the connecting strike.\n"
+                "  * CINEMATIC IMPACT: Freezes game for 0.13s Hitstop + 0.12x Slow-Mo zoom!\n\n"
+                "COUNTER LAUNCHERS:\n"
+                "  * Heavy attacks like Axe Roundhouse [4] become full vertical Launchers\n"
+                "    specifically on Counter Hit, opening up extended air juggles!\n\n"
+                "PUNISH ADVANTAGE:\n"
+                "  * Striking an opponent during their move recovery triggers PUNISH alert.\n"
+                "  * Guaranteed damage: Defender cannot block, tech, or escape recovery frames.", 11);
+            chMatrix.setFillColor(sf::Color(215, 225, 240));
+            chMatrix.setPosition(sf::Vector2f(822.0f, 210.0f));
+            window.draw(chMatrix);
+
+            // Panel 3: Air Juggle & Scaling (Bottom-Left)
+            drawCard(210.0f, 450.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 450.0f, pW, "3. AIR JUGGLE PHYSICS & ZERO DAMAGE SCALING", sf::Color(35, 75, 70));
+
+            sf::Text jglMatrix(*m_font,
+                "UNIVERSAL LAUNCHERS:\n"
+                "  * EWGF [f+2] (4x, -17.5y), Hopkick [u+4] (4.5x, -15.5y), CH Roundhouse [4].\n"
+                "  * Puts victim into LaunchedJuggle; joint springs relax to 6.0 Hz float.\n\n"
+                "JUGGLE POP-UP IMPULSE:\n"
+                "  * Every hit during LaunchedJuggle applies pop-up impulse (facing*2.5, -9.5)\n"
+                "    to BOTH Hips & Torso (-19.0 total lift), suspending victim for combos!\n\n"
+                "ZERO DAMAGE SCALING EXPLOIT:\n"
+                "  * The combat engine currently has NO damage scaling on juggle hits!\n"
+                "  * Every juggle hit inflicts 100% full unscaled damage.\n"
+                "  * Example: EWGF (25) -> Jab (9) -> 1,2 (17) -> Dropkick (28) = 79 DMG (80% KO!)", 11);
+            jglMatrix.setFillColor(sf::Color(215, 225, 240));
+            jglMatrix.setPosition(sf::Vector2f(222.0f, 488.0f));
+            window.draw(jglMatrix);
+
+            // Panel 4: Wall Splats & Clashes (Bottom-Right)
+            drawCard(810.0f, 450.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(810.0f, 450.0f, pW, "4. WALL SPLATS & SIMULTANEOUS STRIKE CLASHES", sf::Color(85, 65, 25));
+
+            sf::Text wallMatrix(*m_font,
+                "WALL SPLAT DYNAMICS:\n"
+                "  * Arena Wall Zones: Triggered at Left Wall (x < 190) or Right Wall (x > 1410).\n"
+                "  * Hitting opponent with heavy knockback (Dropkick, Power Crush, Launchers,\n"
+                "    or Counter Hits) into the wall triggers a devastating WALL SPLAT!\n"
+                "  * REWARDS: +8.0 Bonus Damage, camera trauma (0.65), wall impact cracks,\n"
+                "    and Wall Stick (zeroes horizontal velocity) for guaranteed follow-up hits!\n\n"
+                "STRIKE CLASH SYSTEM:\n"
+                "  * When both fighters strike simultaneously within 125px (progress < 50%),\n"
+                "    a dramatic CLASH triggers with 3.5x camera zoom, 0.08s slow-mo & recoil!", 11);
+            wallMatrix.setFillColor(sf::Color(215, 225, 240));
+            wallMatrix.setPosition(sf::Vector2f(822.0f, 488.0f));
+            window.draw(wallMatrix);
+        }
+        // =====================================================================
+        // TAB 2: DEFENSE & SYSTEM
+        // =====================================================================
+        else if (m_cmdListTab == 2) {
+            const float pW = 580.0f;
+            const float pH = 268.0f;
+
+            // Panel 1: Complete Guarding Matrix (Top-Left)
+            drawCard(210.0f, 172.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 172.0f, pW, "1. COMPLETE GUARDING & DUCKING MATRIX", sf::Color(32, 55, 90));
+
+            sf::Text gMatrix(*m_font,
+                "NEUTRAL GUARD (AUTOGUARD):\n"
+                "  * Release all movement keys to stand still in Neutral.\n"
+                "  * Automatically blocks High and Mid strikes with ZERO chip damage!\n\n"
+                "BACK-WALK GUARD:\n"
+                "  * Hold [Back] (away from opponent) to retreat while blocking Highs & Mids.\n\n"
+                "CROUCH DUCKING (EVASION):\n"
+                "  * Hold [Down] or [Down+Back] to crouch.\n"
+                "  * Completely ducks under High punches and Command Throws (Clean Miss!).\n\n"
+                "LOW GUARD:\n"
+                "  * Hold [Down+Back] to block Low sweeps (Hell Sweep). Warning: Weak to Mids!", 11);
+            gMatrix.setFillColor(sf::Color(215, 225, 240));
+            gMatrix.setPosition(sf::Vector2f(222.0f, 210.0f));
+            window.draw(gMatrix);
+
+            // Panel 2: Power Crush Hyper Armor (Top-Right)
+            drawCard(810.0f, 172.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(810.0f, 172.0f, pW, "2. POWER CRUSH (HYPER ARMOR)", sf::Color(85, 45, 25));
+
+            sf::Text pcMatrix(*m_font,
+                "INPUT & PROPERTIES:\n"
+                "  * Input: [1+2] (P1: [O] / P2: [Num3]). Startup: 0.15s, Damage: 24.0.\n\n"
+                "HYPER ARMOR ABSORPTION:\n"
+                "  * Absorbs incoming High and Mid strikes during move startup!\n"
+                "  * Takes only 50% damage and suffers ZERO hitstun, punching through\n"
+                "    opponent attack strings to blow them away with 18.0x launch impulse!\n\n"
+                "ARMOR BREAKERS & COUNTERS:\n"
+                "  * Low attacks (Hell Sweep [d+3]) pierce armor and trip the armored fighter!\n"
+                "  * Command Throws [1+3] grab clean through Power Crush armor.", 11);
+            pcMatrix.setFillColor(sf::Color(215, 225, 240));
+            pcMatrix.setPosition(sf::Vector2f(822.0f, 210.0f));
+            window.draw(pcMatrix);
+
+            // Panel 3: Command Throws & Throw Breaks (Bottom-Left)
+            drawCard(210.0f, 450.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 450.0f, pW, "3. COMMAND THROWS & THROW BREAKS", sf::Color(70, 35, 85));
+
+            sf::Text thMatrix(*m_font,
+                "COMMAND THROW PROPERTIES:\n"
+                "  * Input: [1+3] (P1: [L] / P2: [Num6]). Extended 34px grab reach, deals 26.0 DMG.\n"
+                "  * UNBLOCKABLE: Bypasses Standing Guard, Neutral Guard, and Power Crush!\n\n"
+                "THROW BREAKING (DEFENSE):\n"
+                "  * Press ANY attack button during opponent's throw startup to execute\n"
+                "    a THROW BREAK! Breaks the grab and pushes both fighters safely apart.\n\n"
+                "DUCKING EVASION:\n"
+                "  * Crouching / Low Guarding completely evades throws (Miss!), granting\n"
+                "    a massive whiff punish window to launch the recovering opponent!", 11);
+            thMatrix.setFillColor(sf::Color(215, 225, 240));
+            thMatrix.setPosition(sf::Vector2f(222.0f, 488.0f));
+            window.draw(thMatrix);
+
+            // Panel 4: Tech Roll & Rage Mode (Bottom-Right)
+            drawCard(810.0f, 450.0f, pW, pH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(810.0f, 450.0f, pW, "4. GROUND TECH ROLLS & RAGE MODE", sf::Color(90, 30, 40));
+
+            sf::Text rgMatrix(*m_font,
+                "GROUND TECH ROLL (GETUP):\n"
+                "  * When knocked down, tap any attack key or wait 0.45s to execute a roll getup.\n"
+                "  * INVULNERABILITY: Grants 0.35s total invulnerability, escaping all ground traps!\n\n"
+                "RAGE MODE (TEKKEN 7 / 8 AURA):\n"
+                "  * Activates automatically when HP drops below 28% (HP <= 28).\n"
+                "  * Emits pulsing red rage aura; grants +15% FLAT DAMAGE BOOST to all attacks!\n\n"
+                "RAGE ART FINISHER:\n"
+                "  * Press [1+2] while in Rage. Armored super launcher dealing 55.2 damage!\n"
+                "  * Features cinematic camera zoom, screen flash, and 1.6s dramatic slow-mo.", 11);
+            rgMatrix.setFillColor(sf::Color(215, 225, 240));
+            rgMatrix.setPosition(sf::Vector2f(822.0f, 488.0f));
+            window.draw(rgMatrix);
+        }
+        // =====================================================================
+        // TAB 3: CONTROLS & SHORTCUTS
+        // =====================================================================
+        else if (m_cmdListTab == 3) {
+            const float pW = 580.0f;
+            const float topH = 335.0f;
+
+            // Player 1 Card (Top-Left)
+            drawCard(210.0f, 172.0f, pW, topH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 172.0f, pW, "PLAYER 1 CONTROLS (KEYBOARD WASD + J/K/U/I)", sf::Color(30, 65, 115));
+
+            sf::Text p1Ctrl(*m_font,
+                "MOVEMENT & DASHING:\n"
+                "  * [W] Jump / Up    [A] Walk Left / Guard    [S] Crouch    [D] Walk Right\n"
+                "  * Double-Tap [D]: Forward Dash  |  Double-Tap [A]: Back Dash\n\n"
+                "FOUR-BUTTON TEKKEN LAYOUT:\n"
+                "  * 1 (LP / Left Punch)  : [J] (Flash Jab)\n"
+                "  * 2 (RP / Right Punch) : [K] (Straight Cross  |  D+K: EWGF Launcher)\n"
+                "  * 3 (LK / Left Kick)   : [U] (Mid Kick        |  S+U: Hell Sweep)\n"
+                "  * 4 (RK / Right Kick)  : [I] (Axe Roundhouse  |  W+I: Hopkick)\n\n"
+                "NATURAL COMBO & FAST SHORTCUTS:\n"
+                "  * [J] -> [K] : 1, 2 Natural Jab String\n"
+                "  * [O] : 1+2 (Power Crush Armor  |  Rage Art when in Rage!)\n"
+                "  * [L] : 1+3 (Command Throw - Unblockable Grab)\n"
+                "  * [P] : 3+4 (Flying Dropkick - Full Screen Wall Splat)", 11);
+            p1Ctrl.setFillColor(sf::Color(215, 225, 240));
+            p1Ctrl.setPosition(sf::Vector2f(222.0f, 210.0f));
+            window.draw(p1Ctrl);
+
+            // Player 2 Card (Top-Right)
+            drawCard(810.0f, 172.0f, pW, topH, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(810.0f, 172.0f, pW, "PLAYER 2 CONTROLS (ARROWS + NUMPAD / LOCAL 2P)", sf::Color(100, 40, 45));
+
+            sf::Text p2Ctrl(*m_font,
+                "MOVEMENT & DASHING:\n"
+                "  * [Up] Jump    [Left] Walk Left / Guard    [Down] Crouch    [Right] Walk Right\n"
+                "  * Double-Tap [Right]: Forward Dash  |  Double-Tap [Left]: Back Dash\n\n"
+                "FOUR-BUTTON TEKKEN LAYOUT:\n"
+                "  * 1 (LP) : [Numpad 1] or [,] (Flash Jab)\n"
+                "  * 2 (RP) : [Numpad 2] or [.] (Straight Cross  |  Right+2: EWGF Launcher)\n"
+                "  * 3 (LK) : [Numpad 4] or [/] (Mid Kick        |  Down+4: Hell Sweep)\n"
+                "  * 4 (RK) : [Numpad 5] or [;] (Axe Roundhouse  |  Up+5: Hopkick)\n\n"
+                "NATURAL COMBO & FAST SHORTCUTS:\n"
+                "  * [Num1] -> [Num2] : 1, 2 Natural Jab String\n"
+                "  * [Num3] or []] : 1+2 (Power Crush Armor  |  Rage Art in Rage)\n"
+                "  * [Num6] or ['] : 1+3 (Command Throw)\n"
+                "  * [Num9] or [[] : 3+4 (Flying Dropkick)", 11);
+            p2Ctrl.setFillColor(sf::Color(215, 225, 240));
+            p2Ctrl.setPosition(sf::Vector2f(822.0f, 210.0f));
+            window.draw(p2Ctrl);
+
+            // System Shortcuts Card (Bottom)
+            drawCard(210.0f, 517.0f, 1180.0f, 201.0f, sf::Color(20, 25, 36, 230), sf::Color(45, 60, 85));
+            drawSectionHeader(210.0f, 517.0f, 1180.0f, "SYSTEM HOTKEYS, PRACTICE MODE & GAMEPLAY SHORTCUTS", sf::Color(40, 50, 75));
+
+            sf::Text sysCtrl(*m_font,
+                "[F3] KEY           : Toggle this Command List & Mechanics Modal anytime (in Battle, Title, or Pause).\n"
+                "[ESC] KEY          : Pause match during battle / Resume game / Return from modals.\n"
+                "[R] KEY            : Instant Match & Position Reset (Available in Practice Mode).\n"
+                "[TAB] KEY          : Toggle Slow-Motion Simulation Mode (Available in Offline Versus & Practice).\n"
+                "[Ctrl + V]         : Paste Host IP Address directly from system clipboard in Online Lobby.\n"
+                "[A] / [D] / [Tab]  : Switch between tabs in this Command List menu  |  [1] - [4]: Jump directly to tab.\n"
+                "[Space] / [Enter]  : Confirm menu selection  |  [Space] also acts as alternate jump for Player 1.", 11);
+            sysCtrl.setFillColor(sf::Color(220, 230, 245));
+            sysCtrl.setPosition(sf::Vector2f(225.0f, 552.0f));
+            window.draw(sysCtrl);
+        }
+
+        // ---------------------------------------------------------------------
+        // BOTTOM FOOTER & CLOSE BUTTON
+        // ---------------------------------------------------------------------
+        sf::Text navHelp(*m_font, "[A] / [D] / [Tab] Switch Tabs    *    [1]-[4] Direct Tab    *    [Esc] / [F3] Close", 12);
+        navHelp.setFillColor(sf::Color(150, 170, 200));
+        navHelp.setPosition(sf::Vector2f(modalX + 30.0f, modalY + modalH - 32.0f));
+        window.draw(navHelp);
+
+        // Centered Close Button
+        sf::FloatRect closeRect(sf::Vector2f(690.0f, 776.0f), sf::Vector2f(220.0f, 38.0f));
         bool closeHover = closeRect.contains(m_mousePos);
-        sf::RectangleShape closeBtn(sf::Vector2f(260.0f, 44.0f));
-        closeBtn.setOrigin(sf::Vector2f(130.0f, 22.0f));
-        closeBtn.setPosition(sf::Vector2f(800.0f, 750.0f));
-        closeBtn.setFillColor(closeHover ? sf::Color(65, 150, 245) : sf::Color(45, 120, 220));
-        closeBtn.setOutlineColor(closeHover ? sf::Color(255, 235, 100) : sf::Color::White);
-        closeBtn.setOutlineThickness(closeHover ? 3.0f : 2.0f);
+        sf::RectangleShape closeBtn(sf::Vector2f(220.0f, 38.0f));
+        closeBtn.setPosition(sf::Vector2f(690.0f, 776.0f));
+        closeBtn.setFillColor(closeHover ? sf::Color(45, 125, 220) : sf::Color(28, 65, 125));
+        closeBtn.setOutlineColor(closeHover ? sf::Color(255, 225, 80) : sf::Color(80, 150, 240));
+        closeBtn.setOutlineThickness(closeHover ? 2.5f : 1.5f);
         window.draw(closeBtn);
 
-        sf::Text closeText(*m_font, "CLOSE", 15);
+        sf::Text closeText(*m_font, "CLOSE (ESC / F3)", 13);
         closeText.setStyle(sf::Text::Bold);
-        closeText.setFillColor(closeHover ? sf::Color(255, 255, 120) : sf::Color::White);
-        closeText.setOrigin(sf::Vector2f(closeText.getLocalBounds().size.x * 0.5f, closeText.getLocalBounds().size.y * 0.5f + 3.0f));
-        closeText.setPosition(sf::Vector2f(800.0f, 750.0f));
+        closeText.setFillColor(closeHover ? sf::Color(255, 240, 120) : sf::Color::White);
+        closeText.setOrigin(sf::Vector2f(closeText.getLocalBounds().size.x * 0.5f, closeText.getLocalBounds().size.y * 0.5f + 2.0f));
+        closeText.setPosition(sf::Vector2f(800.0f, 795.0f));
         window.draw(closeText);
     }
 
@@ -2010,6 +2355,7 @@ private:
     int m_stageIdx{ 0 };
     int m_titleSelectedIdx{ 0 };
     int m_pauseSelectedIdx{ 0 };
+    int m_cmdListTab{ 0 };
 
     float m_animTime{ 0.0f };
     float m_versusTimer{ 2.2f };
