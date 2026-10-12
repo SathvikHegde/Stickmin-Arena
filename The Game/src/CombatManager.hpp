@@ -92,10 +92,7 @@ public:
                 camera.triggerCinematicZoom(0.32f, 2.2f, (p1Pos.x < p2Pos.x ? -3.0f : 3.0f));
                 camera.addTrauma(0.85f);
                 juiceFX.triggerScreenFlash(0.16f, sf::Color(255, 255, 255, 175));
-                sf::Vector2f koCenter = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -40.0f);
-                juiceFX.spawnFloatingText(koCenter, "K.O.", sf::Color(255, 220, 40), 2.4f);
                 queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 175), 0.16f);
-                queueJuiceEvent(JuiceEventType::FloatingText, koCenter, sf::Vector2f(0.0f, 0.0f), sf::Color(255, 220, 40), 2.4f, "K.O.");
             }
 
             // 3. Simultaneous attack clash check
@@ -125,6 +122,7 @@ public:
 
     MatchState getState() const { return m_state; }
     void setState(MatchState s) { m_state = s; }
+    float getStateTimer() const { return m_stateTimer; }
     float getRoundTimer() const { return m_roundTimer; }
     void setRoundTimer(float t) { m_roundTimer = t; }
     int getRoundNumber() const { return m_roundNumber; }
@@ -188,9 +186,10 @@ private:
                 camera.addTrauma(0.40f);
 
                 sf::Vector2f mid = (p1Pos + p2Pos) * 0.5f + sf::Vector2f(0.0f, -50.0f);
-                juiceFX.spawnFloatingText(mid, "CLASH", sf::Color(255, 230, 60), 1.4f);
+                m_p1->triggerAlert("CLASH", sf::Color(255, 230, 60), 1.2f);
+                m_p2->triggerAlert("CLASH", sf::Color(255, 230, 60), 1.2f);
                 juiceFX.triggerScreenFlash(0.06f, sf::Color(255, 255, 255, 110));
-                queueJuiceEvent(JuiceEventType::FloatingText, mid, sf::Vector2f(0.0f, 0.0f), sf::Color(255, 230, 60), 1.4f, "CLASH");
+                queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(800.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 230, 60), 1.2f, "CLASH");
                 queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 110), 0.06f);
             }
         }
@@ -239,11 +238,11 @@ private:
 
             if (hitRes == RagdollEngine::HitResult::ThrowBroken) {
                 // Throw broken by defender
-                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "THROW BREAK", sf::Color(80, 220, 255), 1.5f);
+                defender.triggerAlert("THROW BREAK", sf::Color(80, 220, 255), 1.2f);
                 juiceFX.spawnBlockEffect(strikeTip);
                 camera.addTrauma(0.35f);
                 timeManager.triggerHitstop(0.10f);
-                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(80, 220, 255), 1.5f, "THROW BREAK");
+                queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(defender.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(80, 220, 255), 1.2f, "THROW BREAK");
                 queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, -1.0f), sf::Color(80, 220, 255), 1.0f);
 
                 // Push fighters apart
@@ -253,23 +252,21 @@ private:
                 if (b2Body_IsValid(defTorso)) b2Body_ApplyLinearImpulseToCenter(defTorso, b2Vec2{ atCtrl->getFacingDirection() * 6.5f, 0.0f }, true);
             } else if (hitRes == RagdollEngine::HitResult::ThrowGrabbed) {
                 // Throw connected
-                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -45.0f), "THROW", sf::Color(255, 215, 0), 1.6f);
                 defender.takeDamage(baseDamage);
                 attacker.addComboHit(baseDamage);
                 camera.addTrauma(0.75f);
                 timeManager.triggerHitstop(0.12f);
                 juiceFX.spawnImpact(strikeTip, sf::Vector2f(0.0f, 1.0f), sf::Color(255, 215, 0), true);
-                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -45.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 215, 0), 1.6f, "THROW");
                 queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, 1.0f), sf::Color(255, 215, 0), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::PowerCrushAbsorb) {
                 // Power Crush armor absorbed hit
                 float absorbedDmg = baseDamage * 0.5f;
                 defender.takeDamage(absorbedDmg);
-                juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "POWER CRUSH", sf::Color(255, 120, 30), 1.4f);
+                defender.triggerAlert("POWER CRUSH", sf::Color(255, 120, 30), 1.2f);
                 juiceFX.spawnImpact(strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.2f), sf::Color(255, 120, 30), false);
                 camera.addTrauma(0.35f);
                 timeManager.triggerHitstop(0.06f);
-                queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 120, 30), 1.4f, "POWER CRUSH");
+                queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(defender.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 120, 30), 1.2f, "POWER CRUSH");
                 queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(atCtrl->getFacingDirection() * 1.0f, -0.2f), sf::Color(255, 120, 30), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::Blocked) {
                 juiceFX.spawnBlockEffect(strikeTip);
@@ -278,21 +275,31 @@ private:
                 queueJuiceEvent(JuiceEventType::ImpactHit, strikeTip, sf::Vector2f(0.0f, -1.0f), sf::Color(110, 210, 255), 1.0f);
             } else if (hitRes == RagdollEngine::HitResult::CleanHit || hitRes == RagdollEngine::HitResult::CounterHit) {
                 bool isCounter = (hitRes == RagdollEngine::HitResult::CounterHit);
+                bool isPunish = (!isCounter && defCtrl->isAttackRecovery());
                 float damageMult = isCounter ? 1.45f : 1.0f;
                 float finalDamage = baseDamage * damageMult;
 
                 defender.takeDamage(finalDamage);
                 attacker.addComboHit(finalDamage);
 
+                // Technical Combat Alerts (Tekken 7 HUD cues)
+                if (isCounter) {
+                    attacker.triggerAlert("COUNTER HIT", sf::Color(255, 50, 50), 1.2f);
+                    queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(attacker.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 50, 50), 1.2f, "COUNTER HIT");
+                } else if (isPunish) {
+                    attacker.triggerAlert("PUNISH", sf::Color(255, 215, 60), 1.2f);
+                    queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(attacker.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 215, 60), 1.2f, "PUNISH");
+                }
+
                 // Rage Art Sequence
                 if (move.isRageArt) {
                     attacker.setRageArtUsed(true);
-                    juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -50.0f), "RAGE ART", sf::Color(255, 30, 30), 2.2f);
+                    attacker.triggerAlert("RAGE ART", sf::Color(255, 30, 30), 1.8f);
                     juiceFX.triggerScreenFlash(0.20f, sf::Color(255, 40, 40, 180));
                     camera.triggerCinematicZoom(0.28f, 1.8f, 0.0f);
                     timeManager.triggerSlowMo(0.06f, 1.6f);
                     camera.addTrauma(0.95f);
-                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -50.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 30, 30), 2.2f, "RAGE ART");
+                    queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(attacker.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 30, 30), 1.8f, "RAGE ART");
                     queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 40, 40, 180), 0.20f);
                 }
 
@@ -300,12 +307,12 @@ private:
                 sf::Vector2f defPos = defender.getSkeleton()->getPositionPixels();
                 if ((defPos.x < 190.0f || defPos.x > 1410.0f) &&
                     (std::abs(move.launchImpulse.x) > 7.0f || isCounter || move.isLauncher || move.isPowerCrush)) {
-                    juiceFX.spawnFloatingText(defPos + sf::Vector2f(0.0f, -60.0f), "WALL SPLAT", sf::Color(255, 160, 20), 1.6f);
+                    attacker.triggerAlert("WALL SPLAT", sf::Color(255, 160, 20), 1.3f);
                     defender.takeDamage(8.0f); // Bonus wall splat damage
                     camera.addTrauma(0.65f);
                     timeManager.triggerHitstop(0.14f);
                     juiceFX.spawnImpact(defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), true);
-                    queueJuiceEvent(JuiceEventType::FloatingText, defPos + sf::Vector2f(0.0f, -60.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 160, 20), 1.6f, "WALL SPLAT");
+                    queueJuiceEvent(JuiceEventType::FloatingText, sf::Vector2f(attacker.getId() == 1 ? 100.0f : 1500.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 160, 20), 1.3f, "WALL SPLAT");
                     queueJuiceEvent(JuiceEventType::ImpactHit, defPos, sf::Vector2f((defPos.x < 800.0f ? 1.0f : -1.0f), 0.0f), sf::Color(255, 160, 20), 1.0f);
 
                     if (stageRenderer) {
@@ -324,19 +331,15 @@ private:
 
                 // Check Juggle Pop-Up
                 if (defCtrl->getActionState() == RagdollEngine::FighterActionState::LaunchedJuggle) {
-                    juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -25.0f), "JUGGLE", sf::Color(255, 210, 60), 1.15f);
                     defCtrl->popUpJuggle(b2Vec2{ atCtrl->getFacingDirection() * 2.5f, -9.5f });
-                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -25.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 210, 60), 1.15f, "JUGGLE");
                 }
 
                 // Counter-Hit Slow-Mo
                 if (isCounter && !move.isRageArt) {
-                    juiceFX.spawnFloatingText(strikeTip + sf::Vector2f(0.0f, -40.0f), "COUNTER", sf::Color(255, 60, 60), 1.4f);
                     timeManager.triggerHitstop(0.13f);
                     timeManager.triggerSlowMo(0.12f, 0.70f);
                     camera.addTrauma(0.70f);
                     juiceFX.triggerScreenFlash(0.10f, sf::Color(255, 255, 255, 140));
-                    queueJuiceEvent(JuiceEventType::FloatingText, strikeTip + sf::Vector2f(0.0f, -40.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 60, 60), 1.4f, "COUNTER");
                     queueJuiceEvent(JuiceEventType::ScreenFlash, sf::Vector2f(0.0f, 0.0f), sf::Vector2f(0.0f, 0.0f), sf::Color(255, 255, 255, 140), 0.10f);
                 } else if (!move.isRageArt) {
                     timeManager.triggerHitstop(move.isLauncher ? 0.10f : 0.07f);

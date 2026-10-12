@@ -828,6 +828,11 @@ bool ActiveRagdollController::isAttackStartup() const {
     return (m_moveTimer < m_currentMove.startup);
 }
 
+bool ActiveRagdollController::isAttackRecovery() const {
+    if (m_actionState != FighterActionState::Attacking) return false;
+    return (m_moveTimer >= (m_currentMove.startup + m_currentMove.active));
+}
+
 bool ActiveRagdollController::isGuarding() const {
     return (m_actionState == FighterActionState::HighGuarding ||
             m_actionState == FighterActionState::MovingBackward ||

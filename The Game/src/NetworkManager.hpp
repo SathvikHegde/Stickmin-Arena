@@ -398,7 +398,14 @@ public:
                 juiceFX.spawnElectricBurst(sf::Vector2f(ev.posX, ev.posY), col, 4, 32.0f);
                 if (camera) camera->addTrauma(0.40f);
             } else if (ev.type == JuiceEventType::FloatingText) {
-                juiceFX.spawnFloatingText(sf::Vector2f(ev.posX, ev.posY), ev.text, col, 1.6f);
+                if (ev.text == "CLASH") {
+                    p1.triggerAlert("CLASH", col);
+                    p2.triggerAlert("CLASH", col);
+                } else if (ev.posX < 800.0f) {
+                    p1.triggerAlert(ev.text, col);
+                } else {
+                    p2.triggerAlert(ev.text, col);
+                }
             } else if (ev.type == JuiceEventType::ScreenFlash) {
                 juiceFX.triggerScreenFlash(0.14f, col);
                 if (camera) camera->addTrauma(0.50f);

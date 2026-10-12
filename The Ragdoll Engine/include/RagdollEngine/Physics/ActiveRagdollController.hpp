@@ -185,6 +185,7 @@ public:
     bool isAttacking() const { return m_actionState == FighterActionState::Attacking; }
     bool isAttackActive() const;
     bool isAttackStartup() const;
+    bool isAttackRecovery() const;
     bool isGuarding() const;
     bool isInvincible() const;
     bool isGrounded() const;

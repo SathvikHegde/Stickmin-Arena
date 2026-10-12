@@ -1242,8 +1242,8 @@ int main() {
 
                 // --- P1 DYNAMIC COMBO DISPLAY ---
                 if (p1.getComboHits() > 1) {
-                    sf::Text p1ComboHits(hudFont, std::to_string(p1.getComboHits()) + " HITS!", 38);
-                    p1ComboHits.setStyle(sf::Text::Bold);
+                    sf::Text p1ComboHits(hudFont, std::to_string(p1.getComboHits()) + " HITS", 38);
+                    p1ComboHits.setStyle(sf::Text::Bold | sf::Text::Italic);
                     p1ComboHits.setFillColor(sf::Color(60, 160, 255));
                     p1ComboHits.setOutlineColor(sf::Color::Black);
                     p1ComboHits.setOutlineThickness(3.0f);
@@ -1251,16 +1251,41 @@ int main() {
                     window.draw(p1ComboHits);
 
                     sf::Text p1ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p1.getComboDamage())), 18);
-                    p1ComboDmg.setStyle(sf::Text::Bold);
+                    p1ComboDmg.setStyle(sf::Text::Bold | sf::Text::Italic);
                     p1ComboDmg.setFillColor(sf::Color(255, 220, 60));
                     p1ComboDmg.setPosition(sf::Vector2f(92.0f, 200.0f));
                     window.draw(p1ComboDmg);
                 }
 
+                // --- P1 TEKKEN 7 COMBAT ALERT (Technical Cue) ---
+                const auto& p1Alert = p1.getAlert();
+                if (p1Alert.timer > 0.0f && !p1Alert.text.empty()) {
+                    float alphaFactor = std::clamp(p1Alert.timer / 0.32f, 0.0f, 1.0f);
+                    std::uint8_t textAlpha = static_cast<std::uint8_t>(255 * alphaFactor);
+                    float alertY = (p1.getComboHits() > 1) ? 234.0f : 148.0f;
+
+                    sf::Text alertText(hudFont, p1Alert.text, 20);
+                    alertText.setStyle(sf::Text::Bold | sf::Text::Italic);
+                    alertText.setFillColor(sf::Color(p1Alert.color.r, p1Alert.color.g, p1Alert.color.b, textAlpha));
+                    alertText.setOutlineColor(sf::Color(0, 0, 0, textAlpha));
+                    alertText.setOutlineThickness(2.5f);
+
+                    sf::FloatRect bounds = alertText.getLocalBounds();
+                    sf::RectangleShape badge(sf::Vector2f(bounds.size.x + 22.0f, 28.0f));
+                    badge.setPosition(sf::Vector2f(88.0f, alertY - 2.0f));
+                    badge.setFillColor(sf::Color(14, 18, 26, static_cast<std::uint8_t>(210 * alphaFactor)));
+                    badge.setOutlineColor(sf::Color(p1Alert.color.r, p1Alert.color.g, p1Alert.color.b, static_cast<std::uint8_t>(180 * alphaFactor)));
+                    badge.setOutlineThickness(1.5f);
+                    window.draw(badge);
+
+                    alertText.setPosition(sf::Vector2f(98.0f, alertY));
+                    window.draw(alertText);
+                }
+
                 // --- P2 DYNAMIC COMBO DISPLAY ---
                 if (p2.getComboHits() > 1) {
-                    sf::Text p2ComboHits(hudFont, std::to_string(p2.getComboHits()) + " HITS!", 38);
-                    p2ComboHits.setStyle(sf::Text::Bold);
+                    sf::Text p2ComboHits(hudFont, std::to_string(p2.getComboHits()) + " HITS", 38);
+                    p2ComboHits.setStyle(sf::Text::Bold | sf::Text::Italic);
                     p2ComboHits.setFillColor(sf::Color(255, 60, 80));
                     p2ComboHits.setOutlineColor(sf::Color::Black);
                     p2ComboHits.setOutlineThickness(3.0f);
@@ -1269,22 +1294,65 @@ int main() {
                     window.draw(p2ComboHits);
 
                     sf::Text p2ComboDmg(hudFont, "DAMAGE " + std::to_string(static_cast<int>(p2.getComboDamage())), 18);
-                    p2ComboDmg.setStyle(sf::Text::Bold);
+                    p2ComboDmg.setStyle(sf::Text::Bold | sf::Text::Italic);
                     p2ComboDmg.setFillColor(sf::Color(255, 220, 60));
                     p2ComboDmg.setOrigin(sf::Vector2f(p2ComboDmg.getLocalBounds().size.x, 0.0f));
                     p2ComboDmg.setPosition(sf::Vector2f(1508.0f, 200.0f));
                     window.draw(p2ComboDmg);
                 }
 
-                // --- ROUND INTRO & MATCH OVER BANNERS ---
+                // --- P2 TEKKEN 7 COMBAT ALERT (Technical Cue) ---
+                const auto& p2Alert = p2.getAlert();
+                if (p2Alert.timer > 0.0f && !p2Alert.text.empty()) {
+                    float alphaFactor = std::clamp(p2Alert.timer / 0.32f, 0.0f, 1.0f);
+                    std::uint8_t textAlpha = static_cast<std::uint8_t>(255 * alphaFactor);
+                    float alertY = (p2.getComboHits() > 1) ? 234.0f : 148.0f;
+
+                    sf::Text alertText(hudFont, p2Alert.text, 20);
+                    alertText.setStyle(sf::Text::Bold | sf::Text::Italic);
+                    alertText.setFillColor(sf::Color(p2Alert.color.r, p2Alert.color.g, p2Alert.color.b, textAlpha));
+                    alertText.setOutlineColor(sf::Color(0, 0, 0, textAlpha));
+                    alertText.setOutlineThickness(2.5f);
+
+                    sf::FloatRect bounds = alertText.getLocalBounds();
+                    sf::RectangleShape badge(sf::Vector2f(bounds.size.x + 22.0f, 28.0f));
+                    badge.setOrigin(sf::Vector2f(badge.getSize().x, 0.0f));
+                    badge.setPosition(sf::Vector2f(1512.0f, alertY - 2.0f));
+                    badge.setFillColor(sf::Color(14, 18, 26, static_cast<std::uint8_t>(210 * alphaFactor)));
+                    badge.setOutlineColor(sf::Color(p2Alert.color.r, p2Alert.color.g, p2Alert.color.b, static_cast<std::uint8_t>(180 * alphaFactor)));
+                    badge.setOutlineThickness(1.5f);
+                    window.draw(badge);
+
+                    alertText.setOrigin(sf::Vector2f(bounds.size.x, 0.0f));
+                    alertText.setPosition(sf::Vector2f(1502.0f, alertY));
+                    window.draw(alertText);
+                }
+
+                // --- ROUND INTRO, ROUND KO & MATCH OVER BANNERS ---
                 if (combatManager.getState() == StickminGame::MatchState::RoundIntro) {
-                    sf::Text introText(hudFont, "ROUND " + std::to_string(combatManager.getRoundNumber()) + " // FIGHT!", 54);
-                    introText.setStyle(sf::Text::Bold);
-                    introText.setFillColor(sf::Color(255, 235, 60));
+                    std::string announceStr = (combatManager.getStateTimer() > 0.65f)
+                        ? ("ROUND " + std::to_string(combatManager.getRoundNumber()))
+                        : "FIGHT";
+                    sf::Color announceCol = (combatManager.getStateTimer() > 0.65f)
+                        ? sf::Color(255, 230, 70)
+                        : sf::Color(255, 80, 50);
+
+                    // Central cinematic banner plate
+                    sf::RectangleShape bannerPlate(sf::Vector2f(1600.0f, 96.0f));
+                    bannerPlate.setOrigin(sf::Vector2f(800.0f, 48.0f));
+                    bannerPlate.setPosition(sf::Vector2f(800.0f, 365.0f));
+                    bannerPlate.setFillColor(sf::Color(10, 12, 18, 205));
+                    bannerPlate.setOutlineColor(announceCol);
+                    bannerPlate.setOutlineThickness(2.0f);
+                    window.draw(bannerPlate);
+
+                    sf::Text introText(hudFont, announceStr, 60);
+                    introText.setStyle(sf::Text::Bold | sf::Text::Italic);
+                    introText.setFillColor(announceCol);
                     introText.setOutlineColor(sf::Color(10, 10, 15));
-                    introText.setOutlineThickness(4.0f);
+                    introText.setOutlineThickness(4.5f);
                     introText.setOrigin(sf::Vector2f(introText.getLocalBounds().size.x * 0.5f, introText.getLocalBounds().size.y * 0.5f));
-                    introText.setPosition(sf::Vector2f(800.0f, 365.0f));
+                    introText.setPosition(sf::Vector2f(800.0f, 360.0f));
                     window.draw(introText);
 
                     // Stage Presentation Banner
@@ -1294,12 +1362,52 @@ int main() {
                     stageBanner.setOutlineColor(sf::Color(10, 10, 15));
                     stageBanner.setOutlineThickness(2.5f);
                     stageBanner.setOrigin(sf::Vector2f(stageBanner.getLocalBounds().size.x * 0.5f, 0.0f));
-                    stageBanner.setPosition(sf::Vector2f(800.0f, 415.0f));
+                    stageBanner.setPosition(sf::Vector2f(800.0f, 428.0f));
                     window.draw(stageBanner);
+                } else if (combatManager.getState() == StickminGame::MatchState::RoundKO) {
+                    std::string koStr = "K.O.";
+                    if (p1.isDead() && p2.isDead()) {
+                        koStr = "DOUBLE K.O.";
+                    } else if (combatManager.getRoundTimer() <= 0.0f && !p1.isDead() && !p2.isDead()) {
+                        koStr = "TIME UP";
+                    }
+
+                    // Tekken 7 Cinematic K.O. Bar
+                    sf::RectangleShape koPlate(sf::Vector2f(1600.0f, 120.0f));
+                    koPlate.setOrigin(sf::Vector2f(800.0f, 60.0f));
+                    koPlate.setPosition(sf::Vector2f(800.0f, 365.0f));
+                    koPlate.setFillColor(sf::Color(12, 14, 20, 220));
+                    koPlate.setOutlineColor(sf::Color(255, 200, 40, 225));
+                    koPlate.setOutlineThickness(2.5f);
+                    window.draw(koPlate);
+
+                    sf::Text koText(hudFont, koStr, 84);
+                    koText.setStyle(sf::Text::Bold | sf::Text::Italic);
+                    koText.setFillColor(sf::Color(255, 225, 50));
+                    koText.setOutlineColor(sf::Color(15, 15, 20));
+                    koText.setOutlineThickness(5.0f);
+                    koText.setOrigin(sf::Vector2f(koText.getLocalBounds().size.x * 0.5f, koText.getLocalBounds().size.y * 0.5f));
+                    koText.setPosition(sf::Vector2f(800.0f, 355.0f));
+                    window.draw(koText);
+
+                    // Perfect Check
+                    int winner = combatManager.getRoundWinner();
+                    bool isPerfect = (winner == 1 && p1.getHealth() >= 100.0f) ||
+                                     (winner == 2 && p2.getHealth() >= 100.0f);
+                    if (isPerfect) {
+                        sf::Text perfText(hudFont, "PERFECT", 30);
+                        perfText.setStyle(sf::Text::Bold | sf::Text::Italic);
+                        perfText.setFillColor(sf::Color(90, 230, 255));
+                        perfText.setOutlineColor(sf::Color(10, 10, 15));
+                        perfText.setOutlineThickness(3.0f);
+                        perfText.setOrigin(sf::Vector2f(perfText.getLocalBounds().size.x * 0.5f, 0.0f));
+                        perfText.setPosition(sf::Vector2f(800.0f, 435.0f));
+                        window.draw(perfText);
+                    }
                 } else if (combatManager.getState() == StickminGame::MatchState::MatchOver) {
-                    std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS!") : (p2.getName() + " WINS!");
-                    sf::Text winText(hudFont, winnerStr, 52);
-                    winText.setStyle(sf::Text::Bold);
+                    std::string winnerStr = (combatManager.getRoundWinner() == 1) ? (p1.getName() + " WINS") : (p2.getName() + " WINS");
+                    sf::Text winText(hudFont, winnerStr, 54);
+                    winText.setStyle(sf::Text::Bold | sf::Text::Italic);
                     winText.setFillColor(combatManager.getRoundWinner() == 1 ? p1.getCharacterDef().accentColor : p2.getCharacterDef().accentColor);
                     winText.setOutlineColor(sf::Color(10, 10, 15));
                     winText.setOutlineThickness(4.0f);

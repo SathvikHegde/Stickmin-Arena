@@ -12,6 +12,13 @@ namespace StickminGame {
 
 class Fighter {
 public:
+    struct CombatAlert {
+        std::string text;
+        sf::Color color{ sf::Color::White };
+        float timer{ 0.0f };
+        float maxTimer{ 1.1f };
+    };
+
     Fighter(b2WorldId worldId, int id, const RagdollEngine::CharacterDefinition& charDef, const sf::Vector2f& spawnPos)
         : m_worldId(worldId), m_fighterId(id), m_charDef(charDef) {
         
@@ -47,6 +54,8 @@ public:
         m_comboDamage = 0.0f;
         m_comboTimer = 0.0f;
         m_rageArtUsed = false;
+        m_alert.timer = 0.0f;
+        m_alert.text.clear();
     }
 
     void resetHealth() {
@@ -57,6 +66,8 @@ public:
         m_comboDamage = 0.0f;
         m_comboTimer = 0.0f;
         m_rageArtUsed = false;
+        m_alert.timer = 0.0f;
+        m_alert.text.clear();
         m_controller->setLimp(false);
     }
 
@@ -67,6 +78,14 @@ public:
             if (m_comboTimer <= 0.0f) {
                 m_comboHits = 0;
                 m_comboDamage = 0.0f;
+            }
+        }
+
+        // Combat Alert Decay
+        if (m_alert.timer > 0.0f) {
+            m_alert.timer -= dt;
+            if (m_alert.timer < 0.0f) {
+                m_alert.timer = 0.0f;
             }
         }
 
@@ -150,12 +169,22 @@ public:
     bool hasUsedRageArt() const { return m_rageArtUsed; }
     void setRageArtUsed(bool used) { m_rageArtUsed = used; }
 
+    int getId() const { return m_fighterId; }
+    void triggerAlert(const std::string& text, const sf::Color& color, float duration = 1.1f) {
+        m_alert.text = text;
+        m_alert.color = color;
+        m_alert.timer = duration;
+        m_alert.maxTimer = duration;
+    }
+    const CombatAlert& getAlert() const { return m_alert; }
+
 private:
     b2WorldId m_worldId;
     int m_fighterId{ 1 };
     std::string m_name{ "FIGHTER" };
     sf::Color m_accentColor{ sf::Color::Red };
     bool m_rageArtUsed{ false };
+    CombatAlert m_alert;
 
     std::unique_ptr<RagdollEngine::RagdollSkeleton> m_skeleton;
     std::unique_ptr<RagdollEngine::ActiveRagdollController> m_controller;
