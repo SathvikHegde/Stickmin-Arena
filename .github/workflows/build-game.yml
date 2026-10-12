@@ -1,0 +1,48 @@
+name: Build Playable Game
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows x64 Playable Binary
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Game (Release)
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Prepare Playable Staging Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging
+
+          # Copy compiled binary and runtime DLL dependencies
+          Get-ChildItem -Path "build/bin" -Recurse -Include "TheGame.exe", "*.dll" | Copy-Item -Destination "staging"
+
+          Get-ChildItem -Path "staging"
+
+      - name: Upload Playable Game Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stickmin-Arena-Windows-x64
+          path: staging/
+          if-no-files-found: error
+          retention-days: 30
