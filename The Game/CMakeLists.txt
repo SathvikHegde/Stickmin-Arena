@@ -1,9 +1,15 @@
 add_executable(TheGame
     src/Main.cpp
+    src/Fighter.cpp
+    src/CombatManager.cpp
+    src/CpuController.cpp
+    src/NetworkManager.cpp
+    src/MenuManager.cpp
 )
 
 target_include_directories(TheGame PRIVATE
     include
+    src
 )
 
 target_link_libraries(TheGame PRIVATE
