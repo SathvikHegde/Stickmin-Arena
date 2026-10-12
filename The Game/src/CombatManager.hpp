@@ -235,7 +235,7 @@ private:
             }
 
             b2Vec2 impulse = { move.launchImpulse.x, move.launchImpulse.y };
-            RagdollEngine::HitResult hitRes = defCtrl->takeHit(baseDamage, move.height, impulse, move.isLauncher, move.isTrip, move.isThrow);
+            RagdollEngine::HitResult hitRes = defCtrl->takeHit(baseDamage, move.height, impulse, move.isLauncher, move.isTrip, move.isThrow, move.isCounterLauncher);
 
             if (hitRes == RagdollEngine::HitResult::ThrowBroken) {
                 // Command Throw broken by defender!

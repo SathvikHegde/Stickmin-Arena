@@ -503,16 +503,7 @@ void ActiveRagdollController::jump() {
     }
 }
 
-void ActiveRagdollController::triggerMove(MoveId move) {
-    if (m_actionState == FighterActionState::HitStun ||
-        m_actionState == FighterActionState::LaunchedJuggle ||
-        m_actionState == FighterActionState::KnockedDown ||
-        m_actionState == FighterActionState::GettingUp ||
-        m_actionState == FighterActionState::Limp) {
-        return;
-    }
-
-    // Configure move definition
+MoveDefinition ActiveRagdollController::getMoveDefinition(MoveId move, int facingDir) {
     MoveDefinition def;
     def.id = move;
 
@@ -524,8 +515,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.05f;
         def.recovery = 0.08f;
         def.damage = 9.0f;
-        def.launchImpulse = { m_facingDir * 6.0f, -2.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        def.launchImpulse = { facingDir * 6.0f, -2.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
         break;
 
     case MoveId::StraightCross:
@@ -535,8 +526,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.06f;
         def.recovery = 0.10f;
         def.damage = 15.0f;
-        def.launchImpulse = { m_facingDir * 11.0f, -4.0f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
+        def.launchImpulse = { facingDir * 11.0f, -4.0f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
         break;
 
     case MoveId::ElectricWindGodFist:
@@ -548,8 +539,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.damage = 25.0f;
         def.isLauncher = true;
         def.isElectric = true;
-        def.launchImpulse = { m_facingDir * 4.0f, -17.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        def.launchImpulse = { facingDir * 4.0f, -17.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
         break;
 
     case MoveId::HellSweep:
@@ -560,8 +551,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.recovery = 0.13f;
         def.damage = 16.0f;
         def.isTrip = true;
-        def.launchImpulse = { m_facingDir * 8.0f, -4.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
+        def.launchImpulse = { facingDir * 8.0f, -4.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
         break;
 
     case MoveId::AxeRoundhouse:
@@ -571,8 +562,9 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.07f;
         def.recovery = 0.15f;
         def.damage = 22.0f;
-        def.launchImpulse = { m_facingDir * 15.0f, -7.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
+        def.isCounterLauncher = true;
+        def.launchImpulse = { facingDir * 15.0f, -7.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
         break;
 
     case MoveId::Hopkick:
@@ -583,8 +575,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.recovery = 0.16f;
         def.damage = 18.0f;
         def.isLauncher = true;
-        def.launchImpulse = { m_facingDir * 4.5f, -15.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
+        def.launchImpulse = { facingDir * 4.5f, -15.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
         break;
 
     case MoveId::FlyingDropkick:
@@ -594,7 +586,7 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.12f;
         def.recovery = 0.20f;
         def.damage = 28.0f;
-        def.launchImpulse = { m_facingDir * 20.0f, -6.5f };
+        def.launchImpulse = { facingDir * 20.0f, -6.5f };
         def.strikingLimb = LimbType::RightShin;
         break;
 
@@ -605,8 +597,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.09f;
         def.recovery = 0.11f;
         def.damage = 17.0f;
-        def.launchImpulse = { m_facingDir * 9.0f, -3.0f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
+        def.launchImpulse = { facingDir * 9.0f, -3.0f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
         break;
 
     case MoveId::MidKick:
@@ -616,8 +608,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.active = 0.06f;
         def.recovery = 0.11f;
         def.damage = 14.0f;
-        def.launchImpulse = { m_facingDir * 7.5f, -3.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
+        def.launchImpulse = { facingDir * 7.5f, -3.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightShin : LimbType::LeftShin;
         break;
 
     case MoveId::PowerCrush:
@@ -628,8 +620,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.recovery = 0.17f;
         def.damage = 24.0f;
         def.isPowerCrush = true;
-        def.launchImpulse = { m_facingDir * 18.0f, -5.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        def.launchImpulse = { facingDir * 18.0f, -5.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
         break;
 
     case MoveId::Throw:
@@ -641,8 +633,8 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.damage = 26.0f;
         def.isThrow = true;
         def.isTrip = true;
-        def.launchImpulse = { m_facingDir * 12.0f, -4.5f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
+        def.launchImpulse = { facingDir * 12.0f, -4.5f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::RightForearm : LimbType::LeftForearm;
         break;
 
     case MoveId::RageArt:
@@ -655,15 +647,43 @@ void ActiveRagdollController::triggerMove(MoveId move) {
         def.isRageArt = true;
         def.isPowerCrush = true;
         def.isLauncher = true;
-        def.launchImpulse = { m_facingDir * 24.0f, -14.0f };
-        def.strikingLimb = (m_facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
+        def.launchImpulse = { facingDir * 24.0f, -14.0f };
+        def.strikingLimb = (facingDir > 0) ? LimbType::LeftForearm : LimbType::RightForearm;
         break;
 
     default:
+        break;
+    }
+
+    return def;
+}
+
+void ActiveRagdollController::syncRemoteState(FighterActionState state, MoveId moveId, bool attackActive) {
+    m_actionState = state;
+    if (moveId != MoveId::None) {
+        if (m_currentMove.id != moveId) {
+            m_currentMove = getMoveDefinition(moveId, m_facingDir);
+        }
+        if (attackActive) {
+            m_moveTimer = m_currentMove.startup + 0.001f;
+        } else if (state == FighterActionState::Attacking) {
+            m_moveTimer = 0.0f;
+        }
+    } else {
+        m_currentMove = MoveDefinition{};
+    }
+}
+
+void ActiveRagdollController::triggerMove(MoveId move) {
+    if (m_actionState == FighterActionState::HitStun ||
+        m_actionState == FighterActionState::LaunchedJuggle ||
+        m_actionState == FighterActionState::KnockedDown ||
+        m_actionState == FighterActionState::GettingUp ||
+        m_actionState == FighterActionState::Limp) {
         return;
     }
 
-    m_currentMove = def;
+    m_currentMove = getMoveDefinition(move, m_facingDir);
     m_actionState = FighterActionState::Attacking;
     m_moveTimer = 0.0f;
     m_hitRegistered = false;
@@ -684,7 +704,7 @@ void ActiveRagdollController::triggerMove(MoveId move) {
     }
 }
 
-HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip, bool isThrow) {
+HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip, bool isThrow, bool isCounterLauncher) {
     if (isInvincible()) return HitResult::Miss;
 
     // 1. Ducking under High Attacks or Throws
@@ -749,11 +769,12 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
 
     // 5. Was it a counter-hit? (Attacking during startup)
     bool isCounter = isAttackStartup();
+    bool shouldLaunch = isLauncher || (isCounter && isCounterLauncher);
 
     b2BodyId hips = m_skeleton->getHips();
     b2BodyId torso = m_skeleton->getTorso();
 
-    if (isLauncher) {
+    if (shouldLaunch) {
         m_actionState = FighterActionState::LaunchedJuggle;
         m_airborneTime = 0.0f;
 
@@ -765,8 +786,9 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
             }
         }
 
-        if (b2Body_IsValid(hips)) b2Body_ApplyLinearImpulseToCenter(hips, impulse, true);
-        if (b2Body_IsValid(torso)) b2Body_ApplyLinearImpulseToCenter(torso, impulse, true);
+        b2Vec2 finalLaunchImpulse = isLauncher ? impulse : b2Vec2{ impulse.x * 0.65f, -16.0f };
+        if (b2Body_IsValid(hips)) b2Body_ApplyLinearImpulseToCenter(hips, finalLaunchImpulse, true);
+        if (b2Body_IsValid(torso)) b2Body_ApplyLinearImpulseToCenter(torso, finalLaunchImpulse, true);
     } else if (isTrip) {
         m_actionState = FighterActionState::KnockedDown;
         m_knockdownTimer = 0.0f;

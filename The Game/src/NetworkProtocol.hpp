@@ -116,6 +116,7 @@ struct FighterSnapshotData {
     uint8_t actionState{ 0 };
     uint8_t currentMoveId{ 0 };
     bool rageArtUsed{ false };
+    bool attackActive{ false };
     int8_t comboHits{ 0 };
     float comboDamage{ 0.0f };
     RagdollEngine::SkeletonTransforms limbs{};
@@ -123,7 +124,7 @@ struct FighterSnapshotData {
 
 inline sf::Packet& operator<<(sf::Packet& packet, const FighterSnapshotData& f) {
     packet << f.health << f.ghostHealth << f.facingDir << f.actionState << f.currentMoveId
-           << f.rageArtUsed << f.comboHits << f.comboDamage;
+           << f.rageArtUsed << f.attackActive << f.comboHits << f.comboDamage;
     for (const auto& limb : f.limbs) {
         packet << limb.position.x << limb.position.y << limb.angleRadians;
     }
@@ -132,7 +133,7 @@ inline sf::Packet& operator<<(sf::Packet& packet, const FighterSnapshotData& f) 
 
 inline sf::Packet& operator>>(sf::Packet& packet, FighterSnapshotData& f) {
     packet >> f.health >> f.ghostHealth >> f.facingDir >> f.actionState >> f.currentMoveId
-           >> f.rageArtUsed >> f.comboHits >> f.comboDamage;
+           >> f.rageArtUsed >> f.attackActive >> f.comboHits >> f.comboDamage;
     for (auto& limb : f.limbs) {
         packet >> limb.position.x >> limb.position.y >> limb.angleRadians;
     }

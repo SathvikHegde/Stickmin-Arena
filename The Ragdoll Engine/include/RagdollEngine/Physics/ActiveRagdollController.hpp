@@ -64,6 +64,7 @@ struct MoveDefinition {
     float damage{ 12.0f };
     bool isLauncher{ false };
     bool isTrip{ false };
+    bool isCounterLauncher{ false };
     bool isElectric{ false };
     bool isPowerCrush{ false };
     bool isThrow{ false };
@@ -163,7 +164,7 @@ public:
     void jump();
 
     // Damage & Reactions
-    HitResult takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip, bool isThrow = false);
+    HitResult takeHit(float damage, AttackHeight height, b2Vec2 impulse, bool isLauncher, bool isTrip, bool isThrow = false, bool isCounterLauncher = false);
     void popUpJuggle(b2Vec2 impulse);
 
     // Ground info for suspension
@@ -193,6 +194,10 @@ public:
 
     // Contact tips
     sf::Vector2f getActiveStrikingTipPixels() const;
+
+    // Move definition query & remote netplay state sync
+    static MoveDefinition getMoveDefinition(MoveId move, int facingDir);
+    void syncRemoteState(FighterActionState state, MoveId moveId, bool attackActive);
 
     RagdollSkeleton* getSkeleton() { return m_skeleton; }
 

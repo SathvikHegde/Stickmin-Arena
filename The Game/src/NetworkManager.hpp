@@ -328,6 +328,7 @@ public:
         snap.p1.facingDir = static_cast<int8_t>(p1.getController()->getFacingDirection());
         snap.p1.actionState = static_cast<uint8_t>(p1.getController()->getActionState());
         snap.p1.currentMoveId = static_cast<uint8_t>(p1.getController()->getCurrentMove().id);
+        snap.p1.attackActive = p1.getController()->isAttackActive();
         snap.p1.rageArtUsed = p1.hasUsedRageArt();
         snap.p1.comboHits = static_cast<int8_t>(p1.getComboHits());
         snap.p1.comboDamage = p1.getComboDamage();
@@ -339,6 +340,7 @@ public:
         snap.p2.facingDir = static_cast<int8_t>(p2.getController()->getFacingDirection());
         snap.p2.actionState = static_cast<uint8_t>(p2.getController()->getActionState());
         snap.p2.currentMoveId = static_cast<uint8_t>(p2.getController()->getCurrentMove().id);
+        snap.p2.attackActive = p2.getController()->isAttackActive();
         snap.p2.rageArtUsed = p2.hasUsedRageArt();
         snap.p2.comboHits = static_cast<int8_t>(p2.getComboHits());
         snap.p2.comboDamage = p2.getComboDamage();
@@ -364,6 +366,11 @@ public:
         p1.setComboHits(snap.p1.comboHits);
         p1.setComboDamage(snap.p1.comboDamage);
         p1.getController()->setFacingDirection(snap.p1.facingDir);
+        p1.getController()->syncRemoteState(
+            static_cast<RagdollEngine::FighterActionState>(snap.p1.actionState),
+            static_cast<RagdollEngine::MoveId>(snap.p1.currentMoveId),
+            snap.p1.attackActive
+        );
         p1.setRageArtUsed(snap.p1.rageArtUsed);
         p1.getSkeleton()->setLimbTransforms(snap.p1.limbs);
 
@@ -373,6 +380,11 @@ public:
         p2.setComboHits(snap.p2.comboHits);
         p2.setComboDamage(snap.p2.comboDamage);
         p2.getController()->setFacingDirection(snap.p2.facingDir);
+        p2.getController()->syncRemoteState(
+            static_cast<RagdollEngine::FighterActionState>(snap.p2.actionState),
+            static_cast<RagdollEngine::MoveId>(snap.p2.currentMoveId),
+            snap.p2.attackActive
+        );
         p2.setRageArtUsed(snap.p2.rageArtUsed);
         p2.getSkeleton()->setLimbTransforms(snap.p2.limbs);
 

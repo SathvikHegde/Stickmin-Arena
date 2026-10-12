@@ -289,7 +289,7 @@ public:
         bool oppNearWall = (oppPos.x < 220.0f || oppPos.x > 1380.0f);
 
         // If CPU is pinned against the wall, try to dash forward or jump out
-        if ((cpuNearLeftWall && facing < 0) || (cpuNearRightWall && facing > 0)) {
+        if ((cpuNearLeftWall && facing > 0) || (cpuNearRightWall && facing < 0)) {
             if (m_actionCooldown <= 0.0f && (rand() % 100) < 60) {
                 cpuCtrl->triggerDash(facing);
                 if (stageRenderer) {
