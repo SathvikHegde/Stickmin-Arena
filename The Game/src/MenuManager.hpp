@@ -27,7 +27,6 @@ namespace StickminGame {
 enum class MenuState {
     TitleScreen,
     OnlineLobbyModal,
-    CpuComingSoonModal,
     CommandListModal,
     CharacterSelect,
     StageSelect,
@@ -202,13 +201,7 @@ public:
                 }
             }
         }
-        // 2. CPU Coming Soon Modal
-        else if (m_state == MenuState::CpuComingSoonModal) {
-            if (key == sf::Keyboard::Key::Escape || key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space) {
-                m_state = MenuState::TitleScreen;
-            }
-        }
-        // 3. Command List Modal
+        // 2. Command List Modal
         else if (m_state == MenuState::CommandListModal) {
             if (key == sf::Keyboard::Key::Escape || key == sf::Keyboard::Key::Enter || key == sf::Keyboard::Key::Space || key == sf::Keyboard::Key::F3) {
                 m_state = m_prevModalState;
@@ -498,15 +491,7 @@ public:
                 }
             }
         }
-        // 2. CPU Coming Soon Modal Click
-        else if (m_state == MenuState::CpuComingSoonModal && button == sf::Mouse::Button::Left) {
-            sf::FloatRect okBtn(sf::Vector2f(670.0f, 540.0f), sf::Vector2f(260.0f, 46.0f));
-            if (okBtn.contains(mousePos) || !sf::FloatRect(sf::Vector2f(490.0f, 270.0f), sf::Vector2f(620.0f, 350.0f)).contains(mousePos)) {
-                m_state = MenuState::TitleScreen;
-                return true;
-            }
-        }
-        // 3. Command List Modal Click
+        // 2. Command List Modal Click
         else if (m_state == MenuState::CommandListModal && button == sf::Mouse::Button::Left) {
             sf::FloatRect closeBtn(sf::Vector2f(670.0f, 728.0f), sf::Vector2f(260.0f, 44.0f));
             if (closeBtn.contains(mousePos) || !sf::FloatRect(sf::Vector2f(250.0f, 100.0f), sf::Vector2f(1100.0f, 750.0f)).contains(mousePos)) {
@@ -732,10 +717,6 @@ public:
                 drawTitleScreen(window);
                 drawOnlineLobbyModal(window);
                 break;
-            case MenuState::CpuComingSoonModal:
-                drawTitleScreen(window);
-                drawCpuComingSoonModal(window);
-                break;
             case MenuState::CommandListModal:
                 if (m_prevModalState == MenuState::TitleScreen) drawTitleScreen(window);
                 drawCommandListModal(window);
@@ -859,34 +840,26 @@ private:
         titleMain.setPosition(sf::Vector2f(800.0f, 105.0f));
         window.draw(titleMain);
 
-        // Subtitle
-        sf::Text sub(*m_font, "THE RAGDOLL IRON FIST TOURNAMENT", 16);
-        sub.setStyle(sf::Text::Bold);
-        sub.setFillColor(sf::Color(255, 215, 60));
-        sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
-        sub.setPosition(sf::Vector2f(800.0f, 195.0f));
-        window.draw(sub);
-
         // Version badge
         sf::Text ver(*m_font, "Version: 0.67", 12);
         ver.setFillColor(sf::Color(130, 145, 170));
         ver.setOrigin(sf::Vector2f(ver.getLocalBounds().size.x * 0.5f, 0.0f));
-        ver.setPosition(sf::Vector2f(800.0f, 224.0f));
+        ver.setPosition(sf::Vector2f(800.0f, 195.0f));
         window.draw(ver);
 
         // Menu Options
         const std::vector<std::string> options = {
-            "VERSUS BATTLE (LOCAL 2P)",
-            "ONLINE / LAN MULTIPLAYER",
-            "VS CPU (SINGLE PLAYER)",
-            "PRACTICE / TRAINING",
-            "COMMAND LIST & MOVES",
-            "EXIT GAME"
+            "VERSUS (LOCAL)",
+            "ONLINE MULTIPLAYER",
+            "VS CPU",
+            "PRACTICE",
+            "COMMAND LIST",
+            "EXIT"
         };
 
         for (size_t i = 0; i < options.size(); ++i) {
             bool isSelected = (static_cast<int>(i) == m_titleSelectedIdx);
-            float btnY = 300.0f + i * 54.0f;
+            float btnY = 280.0f + i * 54.0f;
 
             sf::RectangleShape btn(sf::Vector2f(440.0f, 42.0f));
             btn.setOrigin(sf::Vector2f(220.0f, 21.0f));
@@ -911,9 +884,9 @@ private:
             optText.setPosition(sf::Vector2f(800.0f, btnY + 21.0f));
             window.draw(optText);
 
-            // "NEW / NETPLAY" pill on Online option (index 1)
+            // "ONLINE" pill on Online option (index 1)
             if (i == 1) {
-                sf::RectangleShape netPill(sf::Vector2f(95.0f, 18.0f));
+                sf::RectangleShape netPill(sf::Vector2f(72.0f, 18.0f));
                 netPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
                 netPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
                 netPill.setFillColor(sf::Color(30, 160, 240));
@@ -921,15 +894,15 @@ private:
                 netPill.setOutlineThickness(1.2f);
                 window.draw(netPill);
 
-                sf::Text netText(*m_font, "NEW / NETPLAY", 9);
+                sf::Text netText(*m_font, "ONLINE", 9);
                 netText.setStyle(sf::Text::Bold);
                 netText.setFillColor(sf::Color::White);
-                netText.setPosition(sf::Vector2f(1034.0f, btnY + 15.0f));
+                netText.setPosition(sf::Vector2f(1042.0f, btnY + 15.0f));
                 window.draw(netText);
             }
-            // "1 PLAYER // AI" small pill on CPU option (index 2)
+            // "VS CPU" small pill on CPU option (index 2)
             else if (i == 2) {
-                sf::RectangleShape csPill(sf::Vector2f(95.0f, 18.0f));
+                sf::RectangleShape csPill(sf::Vector2f(72.0f, 18.0f));
                 csPill.setOrigin(sf::Vector2f(0.0f, 9.0f));
                 csPill.setPosition(sf::Vector2f(1030.0f, btnY + 21.0f));
                 csPill.setFillColor(sf::Color(40, 180, 90));
@@ -937,10 +910,10 @@ private:
                 csPill.setOutlineThickness(1.2f);
                 window.draw(csPill);
 
-                sf::Text csText(*m_font, "1 PLAYER // AI", 9);
+                sf::Text csText(*m_font, "VS CPU", 9);
                 csText.setStyle(sf::Text::Bold);
                 csText.setFillColor(sf::Color::White);
-                csText.setPosition(sf::Vector2f(1035.0f, btnY + 15.0f));
+                csText.setPosition(sf::Vector2f(1042.0f, btnY + 15.0f));
                 window.draw(csText);
             }
 
@@ -955,7 +928,7 @@ private:
         }
 
         // Bottom Controls Hint
-        sf::Text hint(*m_font, "[W / S] or [UP / DOWN] Navigate   |   [ENTER] or [SPACE] Select   |   [ESC] Quit   |   MOUSE SUPPORTED", 13);
+        sf::Text hint(*m_font, "[W / S] Navigate   |   [ENTER / SPACE] Select   |   [ESC] Quit", 13);
         hint.setFillColor(sf::Color(140, 155, 180));
         hint.setOrigin(sf::Vector2f(hint.getLocalBounds().size.x * 0.5f, 0.0f));
         hint.setPosition(sf::Vector2f(800.0f, 840.0f));
@@ -990,7 +963,7 @@ private:
         title.setPosition(sf::Vector2f(800.0f, 105.0f));
         window.draw(title);
 
-        sf::Text sub(*m_font, "DIRECT HIGH-SPEED UDP / TCP PEER-TO-PEER // ZERO CLOUD REQUIREMENT", 12);
+        sf::Text sub(*m_font, "Host or Join via IP", 13);
         sub.setFillColor(sf::Color(255, 215, 60));
         sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
         sub.setPosition(sf::Vector2f(800.0f, 145.0f));
@@ -1213,7 +1186,7 @@ private:
         backBtn.setOutlineThickness(backHover ? 2.5f : 1.5f);
         window.draw(backBtn);
 
-        sf::Text backText(*m_font, "< BACK TO MENU", 14);
+        sf::Text backText(*m_font, "< Back to Menu", 14);
         backText.setStyle(sf::Text::Bold);
         backText.setFillColor(backHover ? sf::Color(255, 215, 60) : sf::Color(200, 215, 235));
         backText.setOrigin(sf::Vector2f(backText.getLocalBounds().size.x * 0.5f, backText.getLocalBounds().size.y * 0.5f + 2.0f));
@@ -1233,7 +1206,7 @@ private:
             procBtn.setOutlineThickness(2.5f + procPulse * 1.5f);
             window.draw(procBtn);
 
-            sf::Text procText(*m_font, "PROCEED TO CHARACTER SELECT  >>", 17);
+            sf::Text procText(*m_font, "Character Select  >>", 17);
             procText.setStyle(sf::Text::Bold);
             procText.setFillColor(sf::Color::White);
             procText.setOrigin(sf::Vector2f(procText.getLocalBounds().size.x * 0.5f, procText.getLocalBounds().size.y * 0.5f + 2.0f));
@@ -1243,77 +1216,7 @@ private:
     }
 
     // -------------------------------------------------------------------------
-    // 2. CPU COMING SOON MODAL
-    // -------------------------------------------------------------------------
-    void drawCpuComingSoonModal(sf::RenderWindow& window) {
-        // Overlay mask
-        sf::RectangleShape mask(sf::Vector2f(1600.0f, 900.0f));
-        mask.setFillColor(sf::Color(8, 10, 16, 220));
-        window.draw(mask);
-
-        // Modal Frame
-        sf::RectangleShape frame(sf::Vector2f(620.0f, 350.0f));
-        frame.setOrigin(sf::Vector2f(310.0f, 175.0f));
-        frame.setPosition(sf::Vector2f(800.0f, 450.0f));
-        frame.setFillColor(sf::Color(18, 22, 32, 250));
-        frame.setOutlineColor(sf::Color(255, 200, 40));
-        frame.setOutlineThickness(3.0f);
-        window.draw(frame);
-
-        // Header Title
-        sf::Text header(*m_font, "VS CPU // SINGLE PLAYER MODE", 24);
-        header.setStyle(sf::Text::Bold);
-        header.setFillColor(sf::Color(255, 215, 60));
-        header.setOrigin(sf::Vector2f(header.getLocalBounds().size.x * 0.5f, 0.0f));
-        header.setPosition(sf::Vector2f(800.0f, 305.0f));
-        window.draw(header);
-
-        // Status Badge
-        sf::RectangleShape badge(sf::Vector2f(200.0f, 26.0f));
-        badge.setOrigin(sf::Vector2f(100.0f, 13.0f));
-        badge.setPosition(sf::Vector2f(800.0f, 352.0f));
-        badge.setFillColor(sf::Color(220, 45, 45));
-        window.draw(badge);
-
-        sf::Text badgeText(*m_font, "UNDER DEVELOPMENT", 11);
-        badgeText.setStyle(sf::Text::Bold);
-        badgeText.setFillColor(sf::Color::White);
-        badgeText.setOrigin(sf::Vector2f(badgeText.getLocalBounds().size.x * 0.5f, badgeText.getLocalBounds().size.y * 0.5f + 2.0f));
-        badgeText.setPosition(sf::Vector2f(800.0f, 352.0f));
-        window.draw(badgeText);
-
-        // Message
-        sf::Text msg(*m_font, 
-            "The Stickmin AI Fighter brain is currently undergoing advanced combat training\n"
-            "at the Toppat orbital station! Adaptive difficulty algorithms, full arcade ladder,\n"
-            "and boss encounter modes will be available in the upcoming update.\n\n"
-            "Grab a friend for local Versus, or hone your moves in Practice mode!", 14);
-        msg.setFillColor(sf::Color(200, 215, 235));
-        msg.setOrigin(sf::Vector2f(msg.getLocalBounds().size.x * 0.5f, 0.0f));
-        msg.setPosition(sf::Vector2f(800.0f, 395.0f));
-        window.draw(msg);
-
-        // OK Button
-        sf::FloatRect okRect(sf::Vector2f(670.0f, 540.0f), sf::Vector2f(260.0f, 46.0f));
-        bool okHover = okRect.contains(m_mousePos);
-        sf::RectangleShape okBtn(sf::Vector2f(260.0f, 46.0f));
-        okBtn.setOrigin(sf::Vector2f(130.0f, 23.0f));
-        okBtn.setPosition(sf::Vector2f(800.0f, 563.0f));
-        okBtn.setFillColor(okHover ? sf::Color(65, 150, 245) : sf::Color(45, 120, 220));
-        okBtn.setOutlineColor(okHover ? sf::Color(255, 235, 100) : sf::Color(255, 255, 255));
-        okBtn.setOutlineThickness(okHover ? 3.0f : 2.0f);
-        window.draw(okBtn);
-
-        sf::Text okText(*m_font, "OK // BACK TO MENU", 15);
-        okText.setStyle(sf::Text::Bold);
-        okText.setFillColor(okHover ? sf::Color(255, 255, 120) : sf::Color::White);
-        okText.setOrigin(sf::Vector2f(okText.getLocalBounds().size.x * 0.5f, okText.getLocalBounds().size.y * 0.5f + 3.0f));
-        okText.setPosition(sf::Vector2f(800.0f, 563.0f));
-        window.draw(okText);
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. COMMAND LIST MODAL
+    // 2. COMMAND LIST MODAL
     // -------------------------------------------------------------------------
     void drawCommandListModal(sf::RenderWindow& window) {
         sf::RectangleShape mask(sf::Vector2f(1600.0f, 900.0f));
@@ -1339,7 +1242,7 @@ private:
         title.setPosition(sf::Vector2f(800.0f, 95.0f));
         window.draw(title);
 
-        sf::Text sub(*m_font, "TEKKEN 4-BUTTON SYSTEM", 13);
+        sf::Text sub(*m_font, "4-Button Battle System", 13);
         sub.setFillColor(sf::Color(255, 215, 60));
         sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
         sub.setPosition(sf::Vector2f(800.0f, 132.0f));
@@ -1374,10 +1277,10 @@ private:
             "  Move: [Arrow Keys]\n\n"
             "NATURAL COMBOS:\n"
             "  1, 2 String : [J] -> [K]\n"
-            "  Fast double strike, +frame on hit.\n\n"
+            "  Two-hit jab string. Plus frames on hit.\n\n"
             "DASHING:\n"
             "  Double tap [D] or [A] to dash.\n"
-            "  Covers ground with forward momentum.", 13);
+            "  Covers ground with forward movement.", 13);
         t1.setFillColor(sf::Color(215, 225, 240));
         t1.setPosition(sf::Vector2f(295.0f, colY + 45.0f));
         window.draw(t1);
@@ -1399,19 +1302,19 @@ private:
         sf::Text t2(*m_font,
             "ELECTRIC WIND GOD FIST (EWGF):\n"
             "  [Forward + 2] (D+K / Right+Num2)\n"
-            "  High launcher with lightning sparks!\n\n"
+            "  High launcher. Plus frames on block.\n\n"
             "HELL SWEEP:\n"
             "  [Down + 3] (S+U / Down+Num4)\n"
-            "  Low trip kick that floors opponent.\n\n"
+            "  Low sweep. Trips opponent on hit.\n\n"
             "HOPKICK:\n"
             "  [Up + 4] (W+I / Up+Num5)\n"
-            "  Crushes low attacks, air launcher!\n\n"
+            "  Mid launcher. Low crush property.\n\n"
             "POWER CRUSH:\n"
             "  [1+2] (Key [O] or J+K / Num3)\n"
-            "  Absorbs hits with SUPER ARMOR.\n\n"
+            "  Mid armor strike. Absorbs high and mid attacks.\n\n"
             "COMMAND THROW:\n"
             "  [1+3] (Key [L] or J+U / Num6)\n"
-            "  Unblockable grappling slam!", 13);
+            "  Unblockable throw.", 13);
         t2.setFillColor(sf::Color(215, 225, 240));
         t2.setPosition(sf::Vector2f(650.0f, colY + 45.0f));
         window.draw(t2);
@@ -1438,15 +1341,15 @@ private:
             "  Hold [Down + Back].\n"
             "  Blocks lows, ducks high punches.\n\n"
             "TECH ROLL (GETUP):\n"
-            "  Tap any attack button on floor\n"
-            "  to instantly roll back to guard.\n\n"
+            "  Tap any attack button while grounded\n"
+            "  to recover quickly.\n\n"
             "RAGE ART FINISHER:\n"
-            "  Active when HP < 25% (Red Glow)!\n"
+            "  Available below 25% HP (Red Glow).\n"
             "  Press [1+2] ([O] or [Num3])\n"
-            "  Cinematic ultra attack!\n\n"
+            "  Armored strike finisher.\n\n"
             "WALL SPLATS:\n"
-            "  Smack opponents into arena walls\n"
-            "  for high-damage wall crumples!", 13);
+            "  Heavy strikes near walls cause\n"
+            "  wall splat crumple states.", 13);
         t3.setFillColor(sf::Color(215, 225, 240));
         t3.setPosition(sf::Vector2f(1005.0f, colY + 45.0f));
         window.draw(t3);
@@ -1462,7 +1365,7 @@ private:
         closeBtn.setOutlineThickness(closeHover ? 3.0f : 2.0f);
         window.draw(closeBtn);
 
-        sf::Text closeText(*m_font, "[ CLOSE // ESC ]", 15);
+        sf::Text closeText(*m_font, "CLOSE", 15);
         closeText.setStyle(sf::Text::Bold);
         closeText.setFillColor(closeHover ? sf::Color(255, 255, 120) : sf::Color::White);
         closeText.setOrigin(sf::Vector2f(closeText.getLocalBounds().size.x * 0.5f, closeText.getLocalBounds().size.y * 0.5f + 3.0f));
@@ -1726,11 +1629,11 @@ private:
 
         // Signature Moves summary
         std::string moveDesc = "";
-        if (charIdx == 0) moveDesc = "Balanced all-rounder.\nMishima EWGF & Hell Sweep.";
-        else if (charIdx == 1) moveDesc = "High agility & fast pokes.\nHopkick air juggle specialist.";
-        else if (charIdx == 2) moveDesc = "Heavy impact momentum.\nHigh damage flying dropkick.";
-        else if (charIdx == 3) moveDesc = "Counter-striking aristocrat.\nHeavy Power Crush armor.";
-        else if (charIdx == 4) moveDesc = "Cyborg juggernaut.\nMassive hits, armored strikes.";
+        if (charIdx == 0) moveDesc = "Balanced all-round fighting style.\nFeatures electric launcher and low sweeps.";
+        else if (charIdx == 1) moveDesc = "Agile striker with fast pokes.\nStrong aerial juggles and hopkick.";
+        else if (charIdx == 2) moveDesc = "High momentum and forward carry.\nFeatures flying dropkicks.";
+        else if (charIdx == 3) moveDesc = "Defensive counter-hitter.\nEnhanced armored Power Crush.";
+        else if (charIdx == 4) moveDesc = "Heavy cyborg bruiser.\nHigh damage output with armor properties.";
 
         sf::Text moves(*m_font, moveDesc, 11);
         moves.setFillColor(sf::Color(190, 205, 225));
@@ -1756,7 +1659,7 @@ private:
         std::string statusStr = isReady
             ? ((m_gameMode == GameMode::VsCpu && playerNum == 2)
                 ? ("CPU: " + std::string(getDifficultyName(m_cpuDifficulty)) + " [READY]")
-                : "READY! [LOCKED IN]")
+                : "READY [LOCKED IN]")
             : (playerNum == 1 ? "P1: PRESS [J] TO LOCK"
                : (m_gameMode == GameMode::Online ? "P2: PRESS [J] TO LOCK"
                   : (m_gameMode == GameMode::VsCpu ? ("CPU: " + std::string(getDifficultyName(m_cpuDifficulty)) + " [CLICK/TAB TO CHANGE]")
@@ -1793,14 +1696,14 @@ private:
         bool isOnlineClient = (m_gameMode == GameMode::Online && m_netManager && m_netManager->isClient());
 
         if (isOnlineClient) {
-            sf::Text sub(*m_font, "HOST IS CHOOSING BATTLEGROUND // WAITING FOR HOST TO COMMENCE...", 13);
+            sf::Text sub(*m_font, "Host is choosing stage. Waiting to start...", 13);
             sub.setStyle(sf::Text::Bold);
             sub.setFillColor(sf::Color(80, 220, 255));
             sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
             sub.setPosition(sf::Vector2f(800.0f, 82.0f));
             window.draw(sub);
         } else {
-            sf::Text sub(*m_font, "CHOOSE ARENA // USE [A/D] OR CLICK TO SELECT // PRESS [ENTER] TO COMMENCE BATTLE", 12);
+            sf::Text sub(*m_font, "Select an arena with [A / D] or click. Press [ENTER] to start.", 12);
             sub.setFillColor(sf::Color(255, 215, 60));
             sub.setOrigin(sf::Vector2f(sub.getLocalBounds().size.x * 0.5f, 0.0f));
             sub.setPosition(sf::Vector2f(800.0f, 82.0f));
@@ -1816,9 +1719,9 @@ private:
         };
 
         std::vector<StageInfo> stages = {
-            { "TOPPAT AIRSHIP DECK", "ALTITUDE: 14,000 FT // SUNSET FLEET", "High-altitude aircraft carrier deck flying through fiery crimson clouds.\nBrisk tailwinds and industrial Toppat steel railings.", sf::Color(245, 55, 65) },
-            { "THE WALL - PRISON YARD", "COMPLEX SECTOR 4 // SIBERIAN BLIZZARD", "High-security prison fortress locked in a subzero Siberian blizzard.\nIcy concrete courtyard, searchlight towers, and freezing winds.", sf::Color(80, 200, 255) },
-            { "THE BANK VAULT", "DESERT CANYON HEIST // BREACHED SAFES", "Deep desert bank vault blown open with explosive dynamite.\nScattered gold bullion, canyon mesas, and howling dust storms.", sf::Color(255, 195, 45) }
+            { "TOPPAT AIRSHIP DECK", "Altitude: 14,000 ft", "High-altitude aircraft carrier deck flying through evening clouds.\nTailwinds and industrial steel railings.", sf::Color(245, 55, 65) },
+            { "THE WALL - PRISON YARD", "Complex Sector 4", "High-security prison fortress during a snowstorm.\nConcrete courtyard, searchlight towers, and freezing winds.", sf::Color(80, 200, 255) },
+            { "THE BANK VAULT", "Desert Canyon", "Desert bank vault breached with explosives.\nScattered gold bullion, canyon mesas, and dust storms.", sf::Color(255, 195, 45) }
         };
 
         for (int i = 0; i < 3; ++i) {

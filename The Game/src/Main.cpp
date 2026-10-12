@@ -94,7 +94,7 @@ int main() {
     // Dynamic props (empty on combat plane to maintain pure Tekken fighting flow)
     std::vector<b2BodyId> props;
 
-    // 4. Spawn Fighters from CharacterRegistry (Starting at Tekken face-off distance)
+    // 4. Spawn fighters from CharacterRegistry
     const auto& roster = RagdollEngine::CharacterRegistry::getAllRosterCharacters();
     size_t p1CharIdx = 0; // Henry Stickmin
     size_t p2CharIdx = 1; // Ellie Rose
@@ -225,7 +225,7 @@ int main() {
                 p1.getController()->setMoveInput(0.0f, 0.0f);
                 p2.getController()->setMoveInput(0.0f, 0.0f);
                 combatManager.startRound(1);
-                juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
+                juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                 if (netManager.isHost()) {
                     netManager.sendRematch();
                 }
@@ -312,7 +312,7 @@ int main() {
                                     p1.resetRoundsWon();
                                     p2.resetRoundsWon();
                                     combatManager.startRound(1);
-                                    juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
+                                    juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                                     netManager.sendRematch();
                                 } else if (netManager.isClient()) {
                                     netManager.sendRematch();
@@ -323,7 +323,7 @@ int main() {
                                 p1.resetRoundsWon();
                                 p2.resetRoundsWon();
                                 combatManager.startRound(1);
-                                juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
+                                juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                             }
                         } else if (keyPressed->code == sf::Keyboard::Key::C) {
                             if (menuManager.getGameMode() == StickminGame::GameMode::Online) {
@@ -355,7 +355,7 @@ int main() {
                         p1.respawn(sf::Vector2f(650.0f, 735.0f));
                         p2.respawn(sf::Vector2f(950.0f, 735.0f));
                         combatManager.startRound(1);
-                        juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "RESET POSITIONS!", sf::Color(80, 200, 255), 1.4f);
+                        juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "RESET", sf::Color(80, 200, 255), 1.4f);
                     }
 
                     // Slow-mo toggle (offline only)
@@ -659,7 +659,7 @@ int main() {
                             p1.resetRoundsWon();
                             p2.resetRoundsWon();
                             combatManager.startRound(1);
-                            juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH!", sf::Color(255, 230, 80), 1.6f);
+                            juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                             netManager.sendRematch();
                         } else if (netManager.isClient()) {
                             netManager.sendRematch();

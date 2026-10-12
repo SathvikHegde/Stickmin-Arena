@@ -637,7 +637,7 @@ void StageRenderer::drawBankVaultBackground(sf::RenderWindow& window, const sf::
         window.draw(gold);
     }
 
-    // THE TUNISIAN DIAMOND (The iconic Henry Stickmin diamond on a display stand!)
+    // Center prop: Tunisian Diamond display pedestal
     sf::Vector2f diaPos(vaultX + 45.0f, vaultY + 175.0f);
     // Pedestal
     sf::RectangleShape pedestal(sf::Vector2f(32.0f, 42.0f));
@@ -669,7 +669,7 @@ void StageRenderer::drawBankVaultBackground(sf::RenderWindow& window, const sf::
     glint.setFillColor(sf::Color(255, 255, 255, 230));
     window.draw(glint);
 
-    // Massive Round Blown-Open Vault Blast Door (Hanging tilted off hinges!)
+    // Blown-open vault blast door
     sf::CircleShape vaultDoor(95.0f);
     vaultDoor.setOrigin(sf::Vector2f(95.0f, 95.0f));
     vaultDoor.setPosition(sf::Vector2f(vaultX - 165.0f, vaultY + 150.0f));

@@ -12,19 +12,14 @@ namespace RagdollEngine {
 RagdollPose RagdollPose::makeIdleGuard(int facingDir, float breathePhase) {
     RagdollPose p;
 
-    // Spine and neck straight and tall with confident upright posture
     p.neck = 0.0f;
     p.spine = 0.0f;
 
-    // FISTS UP! Martial arts boxing guard:
-    // Front arm: tucked close to body guarding chin
+    // Guarding arm offsets
     p.setFrontArm(facingDir, -18.0f * facingDir, -80.0f * facingDir);
-
-    // Rear arm: tucked against torso guarding cheek
     p.setRearArm(facingDir, -8.0f * facingDir, -88.0f * facingDir);
 
-    // SOLID CENTERED ATHLETIC BASE:
-    // Symmetrical foot stance directly under hips to eliminate any horizontal drift
+    // Centered foot stance
     p.setFrontLeg(facingDir, 0.0f, 4.0f * facingDir);
     p.setRearLeg(facingDir, 0.0f, 4.0f * facingDir);
 
@@ -65,27 +60,23 @@ RagdollPose RagdollPose::makeWalk(int facingDir, float phase, bool forward) {
     float s = std::sin(phase);
     float c = std::cos(phase);
 
-    // Spine and neck straight with slight dynamic counter-lean against movement inertia
     p.neck = 0.0f;
     p.spine = forward ? (-2.5f * facingDir) : (1.5f * facingDir);
 
     float dirMult = forward ? 1.0f : -1.0f;
-
-    // Fluid athletic martial arts stride
     float stride = s * 16.0f * dirMult;
 
-    // Front leg: swings forward and lifts knee on upswing to clear the ground
+    // Leg stride calculation
     float frontHip = (3.0f - stride) * facingDir;
     float frontKnee = (s * dirMult > 0.0f ? (10.0f + s * dirMult * 20.0f) : 5.0f) * facingDir;
 
-    // Rear leg: opposite phase with ground-clearance knee lift
     float rearHip = (-2.0f + stride) * facingDir;
     float rearKnee = (s * dirMult < 0.0f ? (10.0f - s * dirMult * 20.0f) : 5.0f) * facingDir;
 
     p.setFrontLeg(facingDir, frontHip, frontKnee);
     p.setRearLeg(facingDir, rearHip, rearKnee);
 
-    // Martial arts guard maintained while stepping with subtle athletic arm sway
+    // Arm sway offset while moving
     float armSway = c * 3.5f;
     p.setFrontArm(facingDir, (-18.0f + armSway) * facingDir, -80.0f * facingDir);
     p.setRearArm(facingDir, (-8.0f - armSway) * facingDir, -88.0f * facingDir);
@@ -189,7 +180,7 @@ RagdollPose RagdollPose::makeEWGF(int facingDir, float progress) {
         p.setFrontLeg(facingDir, -28.0f * facingDir * t, 48.0f * facingDir * t);
         p.setRearLeg(facingDir, 22.0f * facingDir * t, 42.0f * facingDir * t);
     } else if (progress < 0.70f) {
-        // Explosive rising electric uppercut!
+        // Uppercut extension
         p.neck = -12.0f * facingDir;
         p.spine = -14.0f * facingDir;
         p.setFrontArm(facingDir, -135.0f * facingDir, -20.0f * facingDir);
@@ -287,7 +278,7 @@ RagdollPose RagdollPose::makePowerCrush(int facingDir, float progress) {
         p.setFrontLeg(facingDir, -16.0f * facingDir, 24.0f * facingDir);
         p.setRearLeg(facingDir, 18.0f * facingDir, 20.0f * facingDir);
     } else {
-        // Devastating armored lunging chest blow!
+        // Shoulder strike extension
         float t = (progress - 0.45f) / 0.55f;
         float ext = (t < 0.35f) ? (t / 0.35f) : (1.0f - (t - 0.35f) / 0.65f);
         p.neck = 4.0f * facingDir;
@@ -303,7 +294,7 @@ RagdollPose RagdollPose::makePowerCrush(int facingDir, float progress) {
 RagdollPose RagdollPose::makeThrow(int facingDir, float progress) {
     RagdollPose p;
     if (progress < 0.45f) {
-        // Outstretched reach for opponent's collar
+        // Outstretched reach for throw grab
         float t = progress / 0.45f;
         p.neck = 4.0f * facingDir;
         p.spine = (14.0f * t) * facingDir;
@@ -312,7 +303,7 @@ RagdollPose RagdollPose::makeThrow(int facingDir, float progress) {
         p.setFrontLeg(facingDir, -12.0f * facingDir, 16.0f * facingDir);
         p.setRearLeg(facingDir, 12.0f * facingDir, 14.0f * facingDir);
     } else {
-        // Violent downward judo slam!
+        // Downward throw slam
         float t = (progress - 0.45f) / 0.55f;
         p.neck = 8.0f * facingDir;
         p.spine = (14.0f + t * 24.0f) * facingDir;
@@ -327,7 +318,7 @@ RagdollPose RagdollPose::makeThrow(int facingDir, float progress) {
 RagdollPose RagdollPose::makeRageArt(int facingDir, float progress) {
     RagdollPose p;
     if (progress < 0.30f) {
-        // Cinematic charging stance: fists drawn back, eyes glowing
+        // Startup charge stance
         float t = progress / 0.30f;
         p.neck = -8.0f * facingDir;
         p.spine = (-16.0f * t) * facingDir;
@@ -336,7 +327,7 @@ RagdollPose RagdollPose::makeRageArt(int facingDir, float progress) {
         p.setFrontLeg(facingDir, -20.0f * facingDir * t, 30.0f * facingDir * t);
         p.setRearLeg(facingDir, 20.0f * facingDir * t, 25.0f * facingDir * t);
     } else if (progress < 0.70f) {
-        // Supersonic armor thrust punch
+        // Active strike extension
         p.neck = 4.0f * facingDir;
         p.spine = 22.0f * facingDir;
         p.setFrontArm(facingDir, 25.0f * facingDir, -85.0f * facingDir);
@@ -449,7 +440,7 @@ void ActiveRagdollController::setMoveInput(float moveX, float moveY) {
                 m_actionState = FighterActionState::Crouching;
             }
         } else if (m_moveInputX * m_facingDir < -0.2f) {
-            // Holding Back away from opponent = Walk Backward & High Guard (Tekken style!)
+            // Back away from opponent: retreat walk and high block
             m_actionState = FighterActionState::MovingBackward;
         } else if (m_moveInputX * m_facingDir > 0.2f) {
             m_actionState = FighterActionState::MovingForward;
@@ -710,12 +701,12 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
     // 1. Ducking under High Attacks or Throws
     if (m_actionState == FighterActionState::LowGuarding || m_actionState == FighterActionState::Crouching) {
         if (height == AttackHeight::High || isThrow) {
-            // Ducked completely under high strikes and high throws!
+            // Evade high attacks and throws while ducking
             return HitResult::Miss;
         }
     }
 
-    // 2. Command Throw Resolution (Unblockable vs standing guard, broken if defender attacks during startup)
+    // 2. Command Throw Resolution
     if (isThrow) {
         if (isAttackStartup()) {
             return HitResult::ThrowBroken;
@@ -729,24 +720,24 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
         return HitResult::ThrowGrabbed;
     }
 
-    // 3. Power Crush Armor (Absorbs High and Mid attacks without interruption!)
+    // 3. Power Crush armor: absorbs high and mid attacks
     if (m_actionState == FighterActionState::Attacking && m_currentMove.isPowerCrush) {
         if (height == AttackHeight::High || height == AttackHeight::Mid) {
-            // Absorb hit through armor! Slight pushback, but no hitstun or launch!
+            // Absorb hit through armor with reduced impulse
             b2BodyId torso = m_skeleton->getTorso();
             if (b2Body_IsValid(torso)) {
                 b2Body_ApplyLinearImpulseToCenter(torso, b2Vec2{ impulse.x * 0.25f, 0.0f }, true);
             }
             return HitResult::PowerCrushAbsorb;
         }
-        // If it's a Low attack, Power Crush gets interrupted/crushed!
+        // Low attacks interrupt Power Crush
     }
 
-    // 4. Guard / Blocking logic (Authentic Tekken: Active Guard, Back-Walk Guard & Neutral Guard)
+    // 4. Guard and block resolution
     if (m_actionState == FighterActionState::HighGuarding ||
         m_actionState == FighterActionState::MovingBackward ||
         m_actionState == FighterActionState::Neutral) {
-        // High Guard, Back-Walk & Neutral Guard block High and Mid attacks!
+        // High and neutral guard block high and mid attacks
         if (height == AttackHeight::High || height == AttackHeight::Mid) {
             b2BodyId torso = m_skeleton->getTorso();
             if (b2Body_IsValid(torso)) {
@@ -754,9 +745,9 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
             }
             return HitResult::Blocked;
         }
-        // Low attacks pierce High/Neutral Guard!
+        // Low attacks pierce high guard
     } else if (m_actionState == FighterActionState::LowGuarding) {
-        // Low Guard blocks Low attacks
+        // Low guard blocks low attacks
         if (height == AttackHeight::Low) {
             b2BodyId torso = m_skeleton->getTorso();
             if (b2Body_IsValid(torso)) {
@@ -764,7 +755,7 @@ HitResult ActiveRagdollController::takeHit(float damage, AttackHeight height, b2
             }
             return HitResult::Blocked;
         }
-        // Mid attacks crush Low Guard!
+        // Mid attacks crush low guard
     }
 
     // 5. Was it a counter-hit? (Attacking during startup)

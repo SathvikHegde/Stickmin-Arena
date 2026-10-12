@@ -300,13 +300,13 @@ public:
             }
         }
 
-        // If Opponent is near wall, unleash heavy wall splat moves!
+        // Wall pressure moves
         if (oppNearWall && dist < 120.0f && !cpuCtrl->isAttacking() && m_actionCooldown <= 0.0f) {
             int wallAttack = rand() % 100;
             if (wallAttack < 40) {
-                cpuCtrl->triggerMove(RagdollEngine::MoveId::PowerCrush); // Wall Splat monster!
+                cpuCtrl->triggerMove(RagdollEngine::MoveId::PowerCrush);
             } else if (wallAttack < 75) {
-                cpuCtrl->triggerMove(RagdollEngine::MoveId::FlyingDropkick); // Wall Splat dropkick!
+                cpuCtrl->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
             } else {
                 cpuCtrl->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
             }
@@ -315,7 +315,7 @@ public:
         }
 
         // =====================================================================
-        // 6. RAGE ART OPPORTUNITY (Clutch Super)
+        // 6. RAGE ART OPPORTUNITY
         // =====================================================================
         if (cpu.isInRage() && !cpu.hasUsedRageArt() && dist < 115.0f && !cpuCtrl->isAttacking() && m_actionCooldown <= 0.0f) {
             int rageChance = (m_difficulty == CpuDifficulty::Hard) ? 45
@@ -340,7 +340,7 @@ public:
 
                 if (m_difficulty == CpuDifficulty::Hard) {
                     if (roll < 22) {
-                        cpuCtrl->triggerMove(RagdollEngine::MoveId::Throw); // Command Throw unblockable mixup!
+                        cpuCtrl->triggerMove(RagdollEngine::MoveId::Throw);
                     } else if (roll < 45) {
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::FlashJab);
                     } else if (roll < 65) {
@@ -348,7 +348,7 @@ public:
                     } else if (roll < 82) {
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
                     } else {
-                        cpuCtrl->triggerMove(RagdollEngine::MoveId::HellSweep); // Low trip
+                        cpuCtrl->triggerMove(RagdollEngine::MoveId::HellSweep);
                     }
                     m_actionCooldown = 0.22f + (rand() % 12) * 0.01f;
                 } else if (m_difficulty == CpuDifficulty::Medium) {
@@ -386,13 +386,10 @@ public:
 
                 if (m_difficulty == CpuDifficulty::Hard) {
                     if (roll < 30) {
-                        // Mishima EWGF Launcher!
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
                     } else if (roll < 52) {
-                        // Hopkick Mid launcher
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::Hopkick);
                     } else if (roll < 72) {
-                        // Hell Sweep Low Trip
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::HellSweep);
                     } else if (roll < 86) {
                         cpuCtrl->triggerMove(RagdollEngine::MoveId::MidKick);

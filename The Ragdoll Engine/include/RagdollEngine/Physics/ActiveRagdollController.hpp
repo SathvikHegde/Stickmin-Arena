@@ -24,18 +24,18 @@ enum class FighterActionState {
 
 enum class MoveId {
     None,
-    FlashJab,           // 1 (LP) - 10-frame high jab (plus on block)
-    StraightCross,      // 2 (RP) - 12-frame mid straight punch
-    OneTwoString,       // 1, 2 - Classic Tekken jab-cross string
+    FlashJab,           // 1 (LP) - High jab
+    StraightCross,      // 2 (RP) - Mid straight punch
+    OneTwoString,       // 1, 2 - Jab-cross string
     MidKick,            // 3 (LK) - Mid snap kick
     AxeRoundhouse,      // 4 (RK) - High roundhouse (Counter-hit launcher)
-    ElectricWindGodFist,// f+2 - Mishima EWGF electric launcher!
-    HellSweep,          // d+4 - Low sweep leg trip
-    Hopkick,            // u/f+4 - Universal mid hopkick launcher!
-    FlyingDropkick,     // f,f+3 / Running 3 - Flying dropkick
-    PowerCrush,         // 1+2 - Armored shoulder rush (absorbs high/mids)
-    Throw,              // 1+3 - Unblockable command grab and slam!
-    RageArt             // 1+2 in Rage - Cinematic super attack!
+    ElectricWindGodFist,// f+2 - Rising electric uppercut launcher
+    HellSweep,          // d+4 - Low leg sweep
+    Hopkick,            // u/f+4 - Mid jumping kick launcher
+    FlyingDropkick,     // f,f+3 - Running dropkick
+    PowerCrush,         // 1+2 - Armored shoulder rush
+    Throw,              // 1+3 - Command grab throw
+    RageArt             // 1+2 in Rage - Rage Art finisher
 };
 
 enum class AttackHeight {
@@ -49,9 +49,9 @@ enum class HitResult {
     Blocked,
     CleanHit,
     CounterHit,
-    PowerCrushAbsorb,   // Absorbed hit through armor!
-    ThrowGrabbed,       // Caught in unblockable throw!
-    ThrowBroken         // Successfully broke the throw!
+    PowerCrushAbsorb,   // Absorbed hit through armor
+    ThrowGrabbed,       // Grab connected
+    ThrowBroken         // Throw broken by defender
 };
 
 struct MoveDefinition {
