@@ -129,9 +129,8 @@ private:
     void drawPlayerProfileCard(sf::RenderWindow& window, int playerNum, size_t charIdx, bool isReady, const sf::Vector2f& pos, const sf::Vector2f& size);
     void drawStageSelect(sf::RenderWindow& window);
     void drawVersusIntro(sf::RenderWindow& window);
-    void drawPauseMenu(sf::RenderWindow& window);
 
-private:
+    // Private state members
     const sf::Font* m_font{ nullptr };
     RagdollEngine::RagdollRenderer* m_ragdollRenderer{ nullptr };
     RagdollEngine::StageRenderer* m_stageRenderer{ nullptr };
