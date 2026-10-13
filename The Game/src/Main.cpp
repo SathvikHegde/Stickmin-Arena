@@ -13,6 +13,7 @@
 #include "NetworkManager.hpp"
 #include "CpuController.hpp"
 #include "BattleHUD.hpp"
+#include "InputManager.hpp"
 
 #include <iostream>
 #include <memory>
@@ -108,23 +109,12 @@ int main() {
     combatManager.startRound(1);
 
     StickminGame::CpuController cpuController;
+    StickminGame::InputManager inputManager;
 
     float p1Last1Time = -10.0f;
     float p2Last1Time = -10.0f;
 
-    bool p1DDown = false;
-    bool p1ADown = false;
-    float p1LastDReleaseTime = -10.0f;
-    float p1LastAReleaseTime = -10.0f;
-
-    bool p2RightDown = false;
-    bool p2LeftDown = false;
-    float p2LastRightReleaseTime = -10.0f;
-    float p2LastLeftReleaseTime = -10.0f;
-
     // Multiplayer real-time state variables
-    uint16_t clientPendingButtons = 0;
-    int8_t clientPendingDash = 0;
     float hostClientMoveX = 0.0f;
     float hostClientMoveY = 0.0f;
     float lastClientInputTime = 0.0f;
@@ -222,6 +212,7 @@ int main() {
                 p2.respawn(sf::Vector2f(950.0f, 735.0f));
                 p1.resetRoundsWon();
                 p2.resetRoundsWon();
+                inputManager.reset();
                 hostClientMoveX = 0.0f;
                 hostClientMoveY = 0.0f;
                 p1.getController()->setMoveInput(0.0f, 0.0f);
@@ -259,6 +250,7 @@ int main() {
             p2.respawn(sf::Vector2f(950.0f, 735.0f));
             p1.resetRoundsWon();
             p2.resetRoundsWon();
+            inputManager.reset();
             hostClientMoveX = 0.0f;
             hostClientMoveY = 0.0f;
             p1.getController()->setMoveInput(0.0f, 0.0f);
@@ -274,6 +266,7 @@ int main() {
             p2.respawn(sf::Vector2f(950.0f, 735.0f));
             p1.resetRoundsWon();
             p2.resetRoundsWon();
+            inputManager.reset();
             combatManager.startRound(1);
             cpuController.reset();
             cpuController.setDifficulty(menuManager.getCpuDifficulty());
@@ -313,6 +306,7 @@ int main() {
                                     p2.respawn(sf::Vector2f(950.0f, 735.0f));
                                     p1.resetRoundsWon();
                                     p2.resetRoundsWon();
+                                    inputManager.reset();
                                     combatManager.startRound(1);
                                     juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                                     netManager.sendRematch();
@@ -324,6 +318,7 @@ int main() {
                                 p2.respawn(sf::Vector2f(950.0f, 735.0f));
                                 p1.resetRoundsWon();
                                 p2.resetRoundsWon();
+                                inputManager.reset();
                                 combatManager.startRound(1);
                                 juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                             }
@@ -356,6 +351,7 @@ int main() {
                                (keyPressed->code == sf::Keyboard::Key::R)) {
                         p1.respawn(sf::Vector2f(650.0f, 735.0f));
                         p2.respawn(sf::Vector2f(950.0f, 735.0f));
+                        inputManager.reset();
                         combatManager.startRound(1);
                         juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "RESET", sf::Color(80, 200, 255), 1.4f);
                     }
@@ -372,273 +368,11 @@ int main() {
                     }
 
                 // -------------------------------------------------------------
-                // PLAYER 1 COMBAT INPUTS
+                // COMBAT INPUTS
                 // -------------------------------------------------------------
                 if (combatManager.getState() == StickminGame::MatchState::Fighting) {
-                    if (menuManager.getGameMode() == StickminGame::GameMode::Online && netManager.isClient()) {
-                        // -------------------------------------------------------------
-                        // ONLINE CLIENT COMBAT INPUT CAPTURE (P1 Keybinds mapped to online fighter)
-                        // -------------------------------------------------------------
-                        if (keyPressed->code == sf::Keyboard::Key::W || keyPressed->code == sf::Keyboard::Key::Space) {
-                            clientPendingButtons |= StickminGame::InputButtons::Jump;
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::J) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
-                                clientPendingButtons |= StickminGame::InputButtons::PowerCrush;
-                            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::U)) {
-                                clientPendingButtons |= StickminGame::InputButtons::Throw;
-                            } else {
-                                clientPendingButtons |= StickminGame::InputButtons::LP;
-                            }
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::K) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
-                                clientPendingButtons |= StickminGame::InputButtons::PowerCrush;
-                            } else {
-                                clientPendingButtons |= StickminGame::InputButtons::RP;
-                            }
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::U) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
-                                clientPendingButtons |= StickminGame::InputButtons::Throw;
-                            } else {
-                                clientPendingButtons |= StickminGame::InputButtons::LK;
-                            }
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::I) {
-                            clientPendingButtons |= StickminGame::InputButtons::RK;
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::O) {
-                            clientPendingButtons |= StickminGame::InputButtons::PowerCrush;
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::L) {
-                            clientPendingButtons |= StickminGame::InputButtons::Throw;
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::P) {
-                            clientPendingButtons |= StickminGame::InputButtons::Dropkick;
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::D || keyPressed->code == sf::Keyboard::Key::Right) {
-                            if (!p1DDown) {
-                                p1DDown = true;
-                                float now = timeManager.getGameTime();
-                                if (now - p1LastDReleaseTime < 0.22f) {
-                                    clientPendingDash = 1;
-                                }
-                            }
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::A || keyPressed->code == sf::Keyboard::Key::Left) {
-                            if (!p1ADown) {
-                                p1ADown = true;
-                                float now = timeManager.getGameTime();
-                                if (now - p1LastAReleaseTime < 0.22f) {
-                                    clientPendingDash = -1;
-                                }
-                            }
-                        }
-                    } else {
-                        // -------------------------------------------------------------
-                        // PLAYER 1 COMBAT INPUTS (Host or Offline Local)
-                        // -------------------------------------------------------------
-                        bool p1Fwd = (p1.getController()->getFacingDirection() > 0)
-                                     ? sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)
-                                     : sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A);
-                        bool p1Down = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S);
-                        bool p1Up = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W);
-
-                        // 1: LP (Flash Jab / 1+2 / 1+3)
-                        if (keyPressed->code == sf::Keyboard::Key::J) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
-                                if (p1.isInRage() && !p1.hasUsedRageArt()) {
-                                    p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                                } else {
-                                    p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                                }
-                            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::U)) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
-                            } else {
-                                p1Last1Time = timeManager.getGameTime();
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
-                            }
-                        }
-                        // 2: RP (Cross / EWGF / 1,2 String)
-                        if (keyPressed->code == sf::Keyboard::Key::K) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
-                                if (p1.isInRage() && !p1.hasUsedRageArt()) {
-                                    p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                                } else {
-                                    p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                                }
-                            } else if (p1Fwd) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
-                            } else if (timeManager.getGameTime() - p1Last1Time < 0.28f) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::OneTwoString);
-                            } else {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::StraightCross);
-                            }
-                        }
-                        // 3: LK (Mid Kick / Down+3: Hell Sweep)
-                        if (keyPressed->code == sf::Keyboard::Key::U) {
-                            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
-                            } else if (p1Down) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
-                            } else {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::MidKick);
-                            }
-                        }
-                        // 4: RK (Roundhouse / Up+4: Hopkick)
-                        if (keyPressed->code == sf::Keyboard::Key::I) {
-                            if (p1Up) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::Hopkick);
-                            } else {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
-                            }
-                        }
-                        // O: 1+2 (Power Crush Armor / Rage Art when in Rage!)
-                        if (keyPressed->code == sf::Keyboard::Key::O) {
-                            if (p1.isInRage() && !p1.hasUsedRageArt()) {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                            } else {
-                                p1.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                            }
-                        }
-                        // L: 1+3 (Command Throw - Unblockable Grab!)
-                        if (keyPressed->code == sf::Keyboard::Key::L) {
-                            p1.getController()->triggerMove(RagdollEngine::MoveId::Throw);
-                        }
-                        // P: 3+4 (Flying Dropkick)
-                        if (keyPressed->code == sf::Keyboard::Key::P) {
-                            p1.getController()->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
-                        }
-                        // Dashing: Double-tap forward (f,f) or back (b,b) requiring key release
-                        if (keyPressed->code == sf::Keyboard::Key::D || keyPressed->code == sf::Keyboard::Key::Right) {
-                            if (!p1DDown) {
-                                p1DDown = true;
-                                float now = timeManager.getGameTime();
-                                if (now - p1LastDReleaseTime < 0.22f) {
-                                    p1.getController()->triggerDash(1);
-                                    stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(-110.0f, -20.0f), 6);
-                                }
-                            }
-                        }
-                        if (keyPressed->code == sf::Keyboard::Key::A || keyPressed->code == sf::Keyboard::Key::Left) {
-                            if (!p1ADown) {
-                                p1ADown = true;
-                                float now = timeManager.getGameTime();
-                                if (now - p1LastAReleaseTime < 0.22f) {
-                                    p1.getController()->triggerDash(-1);
-                                    stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(110.0f, -20.0f), 6);
-                                }
-                            }
-                        }
-
-                        // Jump
-                        if (keyPressed->code == sf::Keyboard::Key::W || keyPressed->code == sf::Keyboard::Key::Space) {
-                            p1.getController()->jump();
-                            stageRenderer.spawnGroundDust(p1.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(0.0f, -40.0f), 8);
-                        }
-
-                        // -------------------------------------------------------------
-                        // PLAYER 2 COMBAT INPUTS (Offline Local 2P only!)
-                        // -------------------------------------------------------------
-                        if (menuManager.getGameMode() != StickminGame::GameMode::Online &&
-                            menuManager.getGameMode() != StickminGame::GameMode::VsCpu) {
-                            bool p2Fwd = (p2.getController()->getFacingDirection() > 0)
-                                         ? sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)
-                                         : sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left);
-                            bool p2Down = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down);
-                            bool p2Up = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
-
-                            // 1: LP
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad1 || keyPressed->code == sf::Keyboard::Key::Comma) {
-                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad2) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Period)) {
-                                    if (p2.isInRage() && !p2.hasUsedRageArt()) {
-                                        p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                                    } else {
-                                        p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                                    }
-                                } else {
-                                    p2Last1Time = timeManager.getGameTime();
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
-                                }
-                            }
-                            // 2: RP (Cross / EWGF / 1,2 String)
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad2 || keyPressed->code == sf::Keyboard::Key::Period) {
-                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad1) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Comma)) {
-                                    if (p2.isInRage() && !p2.hasUsedRageArt()) {
-                                        p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                                    } else {
-                                        p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                                    }
-                                } else if (p2Fwd) {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
-                                } else if (timeManager.getGameTime() - p2Last1Time < 0.28f) {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::OneTwoString);
-                                } else {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::StraightCross);
-                                }
-                            }
-                            // 3: LK (Mid Kick / Down+3: Hell Sweep)
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad4 || keyPressed->code == sf::Keyboard::Key::Slash) {
-                                if (p2Down) {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
-                                } else {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::MidKick);
-                                }
-                            }
-                            // 4: RK (Roundhouse / Up+4: Hopkick)
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad5 || keyPressed->code == sf::Keyboard::Key::Semicolon) {
-                                if (p2Up) {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::Hopkick);
-                                } else {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
-                                }
-                            }
-                            // 1+2: Power Crush / Rage Art
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad3 || keyPressed->code == sf::Keyboard::Key::RBracket) {
-                                if (p2.isInRage() && !p2.hasUsedRageArt()) {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                                } else {
-                                    p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                                }
-                            }
-                            // 1+3: Command Throw
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad6 || keyPressed->code == sf::Keyboard::Key::Apostrophe) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::Throw);
-                            }
-                            // 3+4: Dropkick
-                            if (keyPressed->code == sf::Keyboard::Key::Numpad9 || keyPressed->code == sf::Keyboard::Key::LBracket) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
-                            }
-                            // Dashing: Double-tap forward or back requiring key release
-                            if (keyPressed->code == sf::Keyboard::Key::Right) {
-                                if (!p2RightDown) {
-                                    p2RightDown = true;
-                                    float now = timeManager.getGameTime();
-                                    if (now - p2LastRightReleaseTime < 0.22f) {
-                                        p2.getController()->triggerDash(1);
-                                        stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(-110.0f, -20.0f), 6);
-                                    }
-                                }
-                            }
-                            if (keyPressed->code == sf::Keyboard::Key::Left) {
-                                if (!p2LeftDown) {
-                                    p2LeftDown = true;
-                                    float now = timeManager.getGameTime();
-                                    if (now - p2LastLeftReleaseTime < 0.22f) {
-                                        p2.getController()->triggerDash(-1);
-                                        stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(110.0f, -20.0f), 6);
-                                    }
-                                }
-                            }
-
-                            // Jump
-                            if (keyPressed->code == sf::Keyboard::Key::Up || keyPressed->code == sf::Keyboard::Key::Numpad0) {
-                                p2.getController()->jump();
-                                stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(0.0f, -40.0f), 8);
-                            }
-                        }
-                    }
+                    bool allowP1Arrows = (menuManager.getGameMode() == StickminGame::GameMode::Online);
+                    inputManager.handleKeyPressed(keyPressed->code, timeManager.getGameTime(), allowP1Arrows);
                 }
             }
         }
@@ -661,6 +395,7 @@ int main() {
                             p2.respawn(sf::Vector2f(950.0f, 735.0f));
                             p1.resetRoundsWon();
                             p2.resetRoundsWon();
+                            inputManager.reset();
                             combatManager.startRound(1);
                             juiceFX.spawnFloatingText(sf::Vector2f(800.0f, 400.0f), "REMATCH", sf::Color(255, 230, 80), 1.6f);
                             netManager.sendRematch();
@@ -672,6 +407,7 @@ int main() {
                         p2.respawn(sf::Vector2f(950.0f, 735.0f));
                         p1.resetRoundsWon();
                         p2.resetRoundsWon();
+                        inputManager.reset();
                         combatManager.startRound(1);
                     }
                     handled = true;
@@ -733,69 +469,25 @@ int main() {
 
             // Key Release Handling for Double-Tap Dash Detection
             if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {
-                float now = timeManager.getGameTime();
-                if (menuManager.getGameMode() == StickminGame::GameMode::Online) {
-                    if (keyReleased->code == sf::Keyboard::Key::D || keyReleased->code == sf::Keyboard::Key::Right) {
-                        p1DDown = false;
-                        p1LastDReleaseTime = now;
-                    }
-                    if (keyReleased->code == sf::Keyboard::Key::A || keyReleased->code == sf::Keyboard::Key::Left) {
-                        p1ADown = false;
-                        p1LastAReleaseTime = now;
-                    }
-                } else {
-                    if (keyReleased->code == sf::Keyboard::Key::D) {
-                        p1DDown = false;
-                        p1LastDReleaseTime = now;
-                    }
-                    if (keyReleased->code == sf::Keyboard::Key::A) {
-                        p1ADown = false;
-                        p1LastAReleaseTime = now;
-                    }
-                    if (keyReleased->code == sf::Keyboard::Key::Right) {
-                        p2RightDown = false;
-                        p2LastRightReleaseTime = now;
-                    }
-                    if (keyReleased->code == sf::Keyboard::Key::Left) {
-                        p2LeftDown = false;
-                        p2LastLeftReleaseTime = now;
-                    }
-                }
+                bool allowP1Arrows = (menuManager.getGameMode() == StickminGame::GameMode::Online);
+                inputManager.handleKeyReleased(keyReleased->code, timeManager.getGameTime(), allowP1Arrows);
             }
         }
 
-        // Continuous Movement Inputs
+        // Continuous Movement & Action Application
         if (menuManager.getState() == StickminGame::MenuState::Battle) {
             bool hasFocus = window.hasFocus();
+            bool isFighting = (combatManager.getState() == StickminGame::MatchState::Fighting);
 
             if (menuManager.getGameMode() == StickminGame::GameMode::Online && netManager.isClient()) {
-                // Client continuous movement & network streaming to Host over UDP
-                float cMoveX = 0.0f;
-                float cMoveY = 0.0f;
-                if (hasFocus) {
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) cMoveX -= 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) cMoveX += 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) cMoveY += 1.0f;
-                }
-
-                StickminGame::ClientInputData clientInput;
-                clientInput.moveX = cMoveX;
-                clientInput.moveY = cMoveY;
-                clientInput.buttons = clientPendingButtons;
-                clientInput.dashDir = clientPendingDash;
+                // Online client: collect inputs and stream to host over UDP
+                StickminGame::ClientInputData clientInput = inputManager.collectP1Input(hasFocus && isFighting, true);
                 netManager.sendClientInput(clientInput);
-
-                clientPendingButtons = 0;
-                clientPendingDash = 0;
             } else if (menuManager.getGameMode() == StickminGame::GameMode::Online && netManager.isHost()) {
-                // Host P1 local input
-                if (hasFocus && combatManager.getState() == StickminGame::MatchState::Fighting) {
-                    float p1MoveX = 0.0f;
-                    float p1MoveY = 0.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) p1MoveX -= 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) p1MoveX += 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) p1MoveY += 1.0f;
-                    p1.getController()->setMoveInput(p1MoveX, p1MoveY);
+                // Online host: P1 local inputs
+                StickminGame::ClientInputData p1Input = inputManager.collectP1Input(hasFocus && isFighting, false);
+                if (isFighting) {
+                    StickminGame::InputManager::applyInputToFighter(p1Input, p1, timeManager.getGameTime(), p1Last1Time, &stageRenderer);
                 } else {
                     p1.getController()->setMoveInput(0.0f, 0.0f);
                 }
@@ -807,55 +499,8 @@ int main() {
                     hostClientMoveY = cInput.moveY;
                     lastClientInputTime = timeManager.getGameTime();
 
-                    if (cInput.dashDir != 0) {
-                        p2.getController()->triggerDash(cInput.dashDir);
-                        stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(-cInput.dashDir * 110.0f, -20.0f), 6);
-                    }
-
-                    if (cInput.buttons & StickminGame::InputButtons::Jump) {
-                        p2.getController()->jump();
-                        stageRenderer.spawnGroundDust(p2.getSkeleton()->getPositionPixels() + sf::Vector2f(0.0f, 65.0f), sf::Vector2f(0.0f, -40.0f), 8);
-                    }
-
-                    if (combatManager.getState() == StickminGame::MatchState::Fighting) {
-                        bool p2Fwd = (p2.getController()->getFacingDirection() > 0) ? (cInput.moveX > 0) : (cInput.moveX < 0);
-                        bool p2Down = (cInput.moveY > 0);
-                        bool p2Up = (cInput.buttons & StickminGame::InputButtons::Jump);
-
-                        if (cInput.buttons & StickminGame::InputButtons::PowerCrush) {
-                            if (p2.isInRage() && !p2.hasUsedRageArt()) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::RageArt);
-                            } else {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::PowerCrush);
-                            }
-                        } else if (cInput.buttons & StickminGame::InputButtons::Throw) {
-                            p2.getController()->triggerMove(RagdollEngine::MoveId::Throw);
-                        } else if (cInput.buttons & StickminGame::InputButtons::Dropkick) {
-                            p2.getController()->triggerMove(RagdollEngine::MoveId::FlyingDropkick);
-                        } else if (cInput.buttons & StickminGame::InputButtons::LP) {
-                            p2Last1Time = timeManager.getGameTime();
-                            p2.getController()->triggerMove(RagdollEngine::MoveId::FlashJab);
-                        } else if (cInput.buttons & StickminGame::InputButtons::RP) {
-                            if (p2Fwd) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::ElectricWindGodFist);
-                            } else if (timeManager.getGameTime() - p2Last1Time < 0.28f) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::OneTwoString);
-                            } else {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::StraightCross);
-                            }
-                        } else if (cInput.buttons & StickminGame::InputButtons::LK) {
-                            if (p2Down) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::HellSweep);
-                            } else {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::MidKick);
-                            }
-                        } else if (cInput.buttons & StickminGame::InputButtons::RK) {
-                            if (p2Up) {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::Hopkick);
-                            } else {
-                                p2.getController()->triggerMove(RagdollEngine::MoveId::AxeRoundhouse);
-                            }
-                        }
+                    if (isFighting) {
+                        StickminGame::InputManager::applyInputToFighter(cInput, p2, timeManager.getGameTime(), p2Last1Time, &stageRenderer);
                     }
                 }
 
@@ -865,46 +510,28 @@ int main() {
                     hostClientMoveY = 0.0f;
                 }
 
-                if (combatManager.getState() == StickminGame::MatchState::Fighting) {
+                if (isFighting) {
                     p2.getController()->setMoveInput(hostClientMoveX, hostClientMoveY);
                 } else {
                     p2.getController()->setMoveInput(0.0f, 0.0f);
                 }
             } else if (menuManager.getGameMode() == StickminGame::GameMode::VsCpu) {
-                // VS CPU (Single Player vs AI)
-                if (hasFocus && combatManager.getState() == StickminGame::MatchState::Fighting) {
-                    float p1MoveX = 0.0f;
-                    float p1MoveY = 0.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) p1MoveX -= 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) p1MoveX += 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) p1MoveY += 1.0f;
-                    p1.getController()->setMoveInput(p1MoveX, p1MoveY);
-                } else {
-                    p1.getController()->setMoveInput(0.0f, 0.0f);
-                }
-
-                // CPU Controller drives Player 2!
-                if (combatManager.getState() == StickminGame::MatchState::Fighting) {
+                // VS CPU (P1 local, P2 driven by AI)
+                StickminGame::ClientInputData p1Input = inputManager.collectP1Input(hasFocus && isFighting, false);
+                if (isFighting) {
+                    StickminGame::InputManager::applyInputToFighter(p1Input, p1, timeManager.getGameTime(), p1Last1Time, &stageRenderer);
                     cpuController.update(realDt, p2, p1, &stageRenderer);
                 } else {
+                    p1.getController()->setMoveInput(0.0f, 0.0f);
                     p2.getController()->setMoveInput(0.0f, 0.0f);
                 }
             } else {
                 // Offline Local 2P / Practice Mode
-                if (hasFocus && combatManager.getState() == StickminGame::MatchState::Fighting) {
-                    float p1MoveX = 0.0f;
-                    float p1MoveY = 0.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) p1MoveX -= 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) p1MoveX += 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) p1MoveY += 1.0f;
-                    p1.getController()->setMoveInput(p1MoveX, p1MoveY);
-
-                    float p2MoveX = 0.0f;
-                    float p2MoveY = 0.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) p2MoveX -= 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) p2MoveX += 1.0f;
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) p2MoveY += 1.0f;
-                    p2.getController()->setMoveInput(p2MoveX, p2MoveY);
+                StickminGame::ClientInputData p1Input = inputManager.collectP1Input(hasFocus && isFighting, false);
+                StickminGame::ClientInputData p2Input = inputManager.collectP2Input(hasFocus && isFighting);
+                if (isFighting) {
+                    StickminGame::InputManager::applyInputToFighter(p1Input, p1, timeManager.getGameTime(), p1Last1Time, &stageRenderer);
+                    StickminGame::InputManager::applyInputToFighter(p2Input, p2, timeManager.getGameTime(), p2Last1Time, &stageRenderer);
                 } else {
                     p1.getController()->setMoveInput(0.0f, 0.0f);
                     p2.getController()->setMoveInput(0.0f, 0.0f);

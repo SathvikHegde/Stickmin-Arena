@@ -6,6 +6,7 @@ add_executable(TheGame
     src/NetworkManager.cpp
     src/MenuManager.cpp
     src/BattleHUD.cpp
+    src/InputManager.cpp
 )
 
 target_include_directories(TheGame PRIVATE
