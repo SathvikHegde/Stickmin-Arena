@@ -13,7 +13,6 @@ add_executable(TheGame
 )
 
 target_include_directories(TheGame PRIVATE
-    include
     src
 )
 
