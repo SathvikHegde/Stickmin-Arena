@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/OpenGL.hpp>
 #include <RagdollEngine/Core/TimeManager.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
 #include <RagdollEngine/Render/StageRenderer.hpp>
@@ -66,32 +67,30 @@ int main() {
     };
     updateLetterbox(window.getSize());
 
+#ifndef GL_SHADING_LANGUAGE_VERSION
+#define GL_SHADING_LANGUAGE_VERSION 0x8B8C
+#endif
+
+    (void)window.setActive(true);
+    const char* glVendor   = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    const char* glRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    const char* glVersion  = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    const char* glslVer    = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    const auto& actualSettings = window.getSettings();
+
     std::cout << "====================================================\n";
-    std::cout << " Stickmin Arena - Tekken 7 Active Ragdolls!\n";
-    std::cout << " Roster: Henry, Ellie, Charles Calvin, Reginald, RHM!\n";
-    std::cout << " Player 1 (Tekken 7 4-Button Controls):\n";
-    std::cout << "   A / D       : Move / Guard (Hold Back to Block!)\n";
-    std::cout << "   S           : Crouch (Hold Down+Back for Crouch Block!)\n";
-    std::cout << "   W / Space   : Jump\n";
-    std::cout << "   J           : 1 (Left Punch - Flash Jab)\n";
-    std::cout << "   K           : 2 (Right Punch - Straight Cross / Fwd+2: EWGF / 1,2: One-Two!)\n";
-    std::cout << "   U           : 3 (Left Kick - Mid Kick / Down+3: Hell Sweep!)\n";
-    std::cout << "   I           : 4 (Right Kick - Axe Roundhouse / Up+4: Hopkick!)\n";
-    std::cout << "   O           : 1+2 (Power Crush Armor / Rage Art when in Rage!)\n";
-    std::cout << "   L           : 1+3 (Command Throw - Unblockable Grab! Break with 1 or 2)\n";
-    std::cout << "   P           : 3+4 (Flying Dropkick)\n";
-    std::cout << " Player 2 (Tekken 7 4-Button Controls):\n";
-    std::cout << "   Arrows      : Move / Guard / Crouch / Jump\n";
-    std::cout << "   Num 1 or ,  : 1 (Left Punch - Flash Jab)\n";
-    std::cout << "   Num 2 or .  : 2 (Right Punch - Straight Cross / Fwd+2: EWGF / 1,2: One-Two!)\n";
-    std::cout << "   Num 4 or /  : 3 (Left Kick - Mid Kick / Down+3: Hell Sweep!)\n";
-    std::cout << "   Num 5 or ;  : 4 (Right Kick - Axe Roundhouse / Up+4: Hopkick!)\n";
-    std::cout << "   Num 3 or ]  : 1+2 (Power Crush Armor / Rage Art when in Rage!)\n";
-    std::cout << "   Num 6 or '  : 1+3 (Command Throw - Unblockable Grab!)\n";
-    std::cout << "   Num 9 or [  : 3+4 (Flying Dropkick)\n";
-    std::cout << " Global:\n";
-    std::cout << "   TAB         : Slow-Mo toggle\n";
-    std::cout << "   B / Enter   : Rematch / Reset\n";
+    std::cout << " Stickmin Arena\n";
+    std::cout << "====================================================\n";
+    std::cout << " [Graphics Device & Driver]\n";
+    std::cout << "   GPU / Renderer  : " << (glRenderer ? glRenderer : "Unknown") << "\n";
+    std::cout << "   Driver / Vendor : " << (glVendor ? glVendor : "Unknown") << "\n";
+    std::cout << "   OpenGL Version  : " << (glVersion ? glVersion : "Unknown") << "\n";
+    if (glslVer) {
+        std::cout << "   GLSL Version    : " << glslVer << "\n";
+    }
+    std::cout << "   Context Profile : OpenGL " << actualSettings.majorVersion << "." << actualSettings.minorVersion << "\n";
+    std::cout << "   Depth / Stencil : " << actualSettings.depthBits << " / " << actualSettings.stencilBits << " bits\n";
+    std::cout << "   MSAA Level      : " << actualSettings.antiAliasingLevel << "x\n";
     std::cout << "====================================================\n";
 
     // 3. Initialize Scene Architecture
