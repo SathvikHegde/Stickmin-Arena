@@ -1,7 +1,8 @@
-#include "RagdollEngine/Render/CharacterRegistry.hpp"
+#include "CharacterRegistry.hpp"
 #include <algorithm>
 
-namespace RagdollEngine {
+namespace StickminGame {
+using namespace RagdollEngine;
 
 CharacterDefinition CharacterRegistry::getHenry() {
     CharacterDefinition def;
@@ -183,4 +184,4 @@ void CharacterRegistry::registerCharacter(const CharacterDefinition& def) {
     s_customRegistry.push_back(def);
 }
 
-} // namespace RagdollEngine
+} // namespace StickminGame
