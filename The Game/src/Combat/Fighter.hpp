@@ -2,7 +2,7 @@
 #include <RagdollEngine/Physics/RagdollSkeleton.hpp>
 #include <RagdollEngine/Physics/ActiveRagdollController.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
-#include <RagdollEngine/Render/CharacterRegistry.hpp>
+#include "CharacterRegistry.hpp"
 #include <RagdollEngine/Render/JuiceFX.hpp>
 #include <memory>
 #include <string>

@@ -8,7 +8,7 @@
 #include <RagdollEngine/Physics/PhysicsUnits.hpp>
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
 #include <RagdollEngine/Render/StageRenderer.hpp>
-#include <RagdollEngine/Render/CharacterRegistry.hpp>
+#include "CharacterRegistry.hpp"
 
 #include <iostream>
 #include <cmath>

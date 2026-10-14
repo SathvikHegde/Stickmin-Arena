@@ -10,7 +10,7 @@
 #include <SFML/Window/Mouse.hpp>
 #include <SFML/Window/Clipboard.hpp>
 
-#include <RagdollEngine/Render/CharacterRegistry.hpp>
+#include "CharacterRegistry.hpp"
 #include <RagdollEngine/Render/RagdollRenderer.hpp>
 #include <RagdollEngine/Render/StageRenderer.hpp>
 
