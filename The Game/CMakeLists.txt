@@ -7,6 +7,9 @@ add_executable(TheGame
     src/MenuManager.cpp
     src/BattleHUD.cpp
     src/InputManager.cpp
+    src/SceneManager.cpp
+    src/MenuScene.cpp
+    src/BattleScene.cpp
 )
 
 target_include_directories(TheGame PRIVATE
